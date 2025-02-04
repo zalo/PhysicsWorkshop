@@ -2530,7 +2530,7 @@ declare namespace PhysX {
     
     class PxTriangleMeshDesc extends PxSimpleTriangleMesh {
         constructor();
-        materialIndices: PxTypedStridedData_PxU16Const;
+        materialIndices: PxU16StridedData;
     }
     
     class PxTriangleMeshFlags {
@@ -2566,11 +2566,6 @@ declare namespace PhysX {
     
     class PxTypedStridedData_PxU16 {
         stride: number;
-        data: PxU16Ptr;
-    }
-    
-    class PxTypedStridedData_PxU16Const {
-        stride: number;
         data: PxU16ConstPtr;
     }
     
@@ -2578,6 +2573,11 @@ declare namespace PhysX {
     }
     
     class PxU16Ptr extends PxU16ConstPtr {
+    }
+    
+    class PxU16StridedData {
+        stride: number;
+        data: PxU16ConstPtr;
     }
     
     class PxU32ConstPtr {
@@ -3471,10 +3471,10 @@ declare namespace PhysX {
         'eRIGID_STATIC',
         'eRIGID_DYNAMIC',
         'eARTICULATION_LINK',
-        'eDEFORMABLE_SURFACE',
-        'eDEFORMABLE_VOLUME',
         'eSOFTBODY',
+        'eFEMCLOTH',
         'ePBD_PARTICLESYSTEM',
+        'eHAIRSYSTEM',
     }
     enum PxActorTypeFlagEnum {
         'eRIGID_STATIC',

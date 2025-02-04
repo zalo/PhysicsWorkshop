@@ -69,7 +69,7 @@ if (Module['ENVIRONMENT']) {
 }
 
 // `/` should be present at the end if `scriptDirectory` is not empty
-var scriptDirectory = '';
+var scriptDirectory = 'assets/physx-js-webidl/';
 function locateFile(path) {
   if (Module['locateFile']) {
     return Module['locateFile'](path, scriptDirectory);
@@ -907,29 +907,29 @@ function dbg(text) {
 // === Body ===
 
 var ASM_CONSTS = {
-  282694: ($0) => { var self = Module['getCache'](Module['CustomSupportImpl'])[$0]; if (!self.hasOwnProperty('getCustomMargin')) throw 'a JSImplementation must implement all functions, you forgot CustomSupportImpl::getCustomMargin.'; return self['getCustomMargin'](); },  
- 282946: ($0, $1, $2) => { var self = Module['getCache'](Module['CustomSupportImpl'])[$0]; if (!self.hasOwnProperty('getCustomSupportLocal')) throw 'a JSImplementation must implement all functions, you forgot CustomSupportImpl::getCustomSupportLocal.'; self['getCustomSupportLocal']($1,$2); },  
- 283214: ($0, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10) => { var self = Module['getCache'](Module['PassThroughFilterShaderImpl'])[$0]; if (!self.hasOwnProperty('filterShader')) throw 'a JSImplementation must implement all functions, you forgot PassThroughFilterShaderImpl::filterShader.'; return self['filterShader']($1,$2,$3,$4,$5,$6,$7,$8,$9,$10); },  
- 283507: ($0, $1, $2) => { var self = Module['getCache'](Module['PxControllerBehaviorCallbackImpl'])[$0]; if (!self.hasOwnProperty('getShapeBehaviorFlags')) throw 'a JSImplementation must implement all functions, you forgot PxControllerBehaviorCallbackImpl::getShapeBehaviorFlags.'; return self['getShapeBehaviorFlags']($1,$2); },  
- 283812: ($0, $1) => { var self = Module['getCache'](Module['PxControllerBehaviorCallbackImpl'])[$0]; if (!self.hasOwnProperty('getControllerBehaviorFlags')) throw 'a JSImplementation must implement all functions, you forgot PxControllerBehaviorCallbackImpl::getControllerBehaviorFlags.'; return self['getControllerBehaviorFlags']($1); },  
- 284129: ($0, $1) => { var self = Module['getCache'](Module['PxControllerBehaviorCallbackImpl'])[$0]; if (!self.hasOwnProperty('getObstacleBehaviorFlags')) throw 'a JSImplementation must implement all functions, you forgot PxControllerBehaviorCallbackImpl::getObstacleBehaviorFlags.'; return self['getObstacleBehaviorFlags']($1); },  
- 284440: ($0, $1, $2) => { var self = Module['getCache'](Module['PxControllerFilterCallbackImpl'])[$0]; if (!self.hasOwnProperty('filter')) throw 'a JSImplementation must implement all functions, you forgot PxControllerFilterCallbackImpl::filter.'; return self['filter']($1,$2); },  
- 284696: ($0, $1, $2, $3, $4) => { var self = Module['getCache'](Module['PxErrorCallbackImpl'])[$0]; if (!self.hasOwnProperty('reportError')) throw 'a JSImplementation must implement all functions, you forgot PxErrorCallbackImpl::reportError.'; self['reportError']($1,$2,$3,$4); },  
- 284944: ($0, $1, $2, $3, $4) => { var self = Module['getCache'](Module['PxQueryFilterCallbackImpl'])[$0]; if (!self.hasOwnProperty('simplePreFilter')) throw 'a JSImplementation must implement all functions, you forgot PxQueryFilterCallbackImpl::simplePreFilter.'; return self['simplePreFilter']($1,$2,$3,$4); },  
- 285223: ($0, $1, $2, $3, $4) => { var self = Module['getCache'](Module['PxQueryFilterCallbackImpl'])[$0]; if (!self.hasOwnProperty('simplePostFilter')) throw 'a JSImplementation must implement all functions, you forgot PxQueryFilterCallbackImpl::simplePostFilter.'; return self['simplePostFilter']($1,$2,$3,$4); },  
- 285505: ($0, $1, $2) => { var self = Module['getCache'](Module['PxSimulationEventCallbackImpl'])[$0]; if (!self.hasOwnProperty('onConstraintBreak')) throw 'a JSImplementation must implement all functions, you forgot PxSimulationEventCallbackImpl::onConstraintBreak.'; self['onConstraintBreak']($1,$2); },  
- 285785: ($0, $1, $2) => { var self = Module['getCache'](Module['PxSimulationEventCallbackImpl'])[$0]; if (!self.hasOwnProperty('onWake')) throw 'a JSImplementation must implement all functions, you forgot PxSimulationEventCallbackImpl::onWake.'; self['onWake']($1,$2); },  
- 286032: ($0, $1, $2) => { var self = Module['getCache'](Module['PxSimulationEventCallbackImpl'])[$0]; if (!self.hasOwnProperty('onSleep')) throw 'a JSImplementation must implement all functions, you forgot PxSimulationEventCallbackImpl::onSleep.'; self['onSleep']($1,$2); },  
- 286282: ($0, $1, $2, $3) => { var self = Module['getCache'](Module['PxSimulationEventCallbackImpl'])[$0]; if (!self.hasOwnProperty('onContact')) throw 'a JSImplementation must implement all functions, you forgot PxSimulationEventCallbackImpl::onContact.'; self['onContact']($1,$2,$3); },  
- 286541: ($0, $1, $2) => { var self = Module['getCache'](Module['PxSimulationEventCallbackImpl'])[$0]; if (!self.hasOwnProperty('onTrigger')) throw 'a JSImplementation must implement all functions, you forgot PxSimulationEventCallbackImpl::onTrigger.'; self['onTrigger']($1,$2); },  
- 286797: ($0, $1) => { var self = Module['getCache'](Module['PxUserControllerHitReportImpl'])[$0]; if (!self.hasOwnProperty('onShapeHit')) throw 'a JSImplementation must implement all functions, you forgot PxUserControllerHitReportImpl::onShapeHit.'; self['onShapeHit']($1); },  
- 287053: ($0, $1) => { var self = Module['getCache'](Module['PxUserControllerHitReportImpl'])[$0]; if (!self.hasOwnProperty('onControllerHit')) throw 'a JSImplementation must implement all functions, you forgot PxUserControllerHitReportImpl::onControllerHit.'; self['onControllerHit']($1); },  
- 287324: ($0, $1) => { var self = Module['getCache'](Module['PxUserControllerHitReportImpl'])[$0]; if (!self.hasOwnProperty('onObstacleHit')) throw 'a JSImplementation must implement all functions, you forgot PxUserControllerHitReportImpl::onObstacleHit.'; self['onObstacleHit']($1); },  
- 287589: ($0) => { var self = Module['getCache'](Module['SimplPvdTransportImpl'])[$0]; if (!self.hasOwnProperty('connect')) throw 'a JSImplementation must implement all functions, you forgot SimplPvdTransportImpl::connect.'; return self['connect'](); },  
- 287825: ($0) => { var self = Module['getCache'](Module['SimplPvdTransportImpl'])[$0]; if (!self.hasOwnProperty('disconnect')) throw 'a JSImplementation must implement all functions, you forgot SimplPvdTransportImpl::disconnect.'; self['disconnect'](); },  
- 288063: ($0) => { var self = Module['getCache'](Module['SimplPvdTransportImpl'])[$0]; if (!self.hasOwnProperty('isConnected')) throw 'a JSImplementation must implement all functions, you forgot SimplPvdTransportImpl::isConnected.'; return self['isConnected'](); },  
- 288311: ($0) => { var self = Module['getCache'](Module['SimplPvdTransportImpl'])[$0]; if (!self.hasOwnProperty('flush')) throw 'a JSImplementation must implement all functions, you forgot SimplPvdTransportImpl::flush.'; self['flush'](); },  
- 288534: ($0, $1, $2) => { var self = Module['getCache'](Module['SimplPvdTransportImpl'])[$0]; if (!self.hasOwnProperty('send')) throw 'a JSImplementation must implement all functions, you forgot SimplPvdTransportImpl::send.'; self['send']($1,$2); }
+  287670: ($0) => { var self = Module['getCache'](Module['CustomSupportImpl'])[$0]; if (!self.hasOwnProperty('getCustomMargin')) throw 'a JSImplementation must implement all functions, you forgot CustomSupportImpl::getCustomMargin.'; return self['getCustomMargin'](); },  
+ 287922: ($0, $1, $2) => { var self = Module['getCache'](Module['CustomSupportImpl'])[$0]; if (!self.hasOwnProperty('getCustomSupportLocal')) throw 'a JSImplementation must implement all functions, you forgot CustomSupportImpl::getCustomSupportLocal.'; self['getCustomSupportLocal']($1,$2); },  
+ 288190: ($0, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10) => { var self = Module['getCache'](Module['PassThroughFilterShaderImpl'])[$0]; if (!self.hasOwnProperty('filterShader')) throw 'a JSImplementation must implement all functions, you forgot PassThroughFilterShaderImpl::filterShader.'; return self['filterShader']($1,$2,$3,$4,$5,$6,$7,$8,$9,$10); },  
+ 288483: ($0, $1, $2) => { var self = Module['getCache'](Module['PxControllerBehaviorCallbackImpl'])[$0]; if (!self.hasOwnProperty('getShapeBehaviorFlags')) throw 'a JSImplementation must implement all functions, you forgot PxControllerBehaviorCallbackImpl::getShapeBehaviorFlags.'; return self['getShapeBehaviorFlags']($1,$2); },  
+ 288788: ($0, $1) => { var self = Module['getCache'](Module['PxControllerBehaviorCallbackImpl'])[$0]; if (!self.hasOwnProperty('getControllerBehaviorFlags')) throw 'a JSImplementation must implement all functions, you forgot PxControllerBehaviorCallbackImpl::getControllerBehaviorFlags.'; return self['getControllerBehaviorFlags']($1); },  
+ 289105: ($0, $1) => { var self = Module['getCache'](Module['PxControllerBehaviorCallbackImpl'])[$0]; if (!self.hasOwnProperty('getObstacleBehaviorFlags')) throw 'a JSImplementation must implement all functions, you forgot PxControllerBehaviorCallbackImpl::getObstacleBehaviorFlags.'; return self['getObstacleBehaviorFlags']($1); },  
+ 289416: ($0, $1, $2) => { var self = Module['getCache'](Module['PxControllerFilterCallbackImpl'])[$0]; if (!self.hasOwnProperty('filter')) throw 'a JSImplementation must implement all functions, you forgot PxControllerFilterCallbackImpl::filter.'; return self['filter']($1,$2); },  
+ 289672: ($0, $1, $2, $3, $4) => { var self = Module['getCache'](Module['PxErrorCallbackImpl'])[$0]; if (!self.hasOwnProperty('reportError')) throw 'a JSImplementation must implement all functions, you forgot PxErrorCallbackImpl::reportError.'; self['reportError']($1,$2,$3,$4); },  
+ 289920: ($0, $1, $2, $3, $4) => { var self = Module['getCache'](Module['PxQueryFilterCallbackImpl'])[$0]; if (!self.hasOwnProperty('simplePreFilter')) throw 'a JSImplementation must implement all functions, you forgot PxQueryFilterCallbackImpl::simplePreFilter.'; return self['simplePreFilter']($1,$2,$3,$4); },  
+ 290199: ($0, $1, $2, $3, $4) => { var self = Module['getCache'](Module['PxQueryFilterCallbackImpl'])[$0]; if (!self.hasOwnProperty('simplePostFilter')) throw 'a JSImplementation must implement all functions, you forgot PxQueryFilterCallbackImpl::simplePostFilter.'; return self['simplePostFilter']($1,$2,$3,$4); },  
+ 290481: ($0, $1, $2) => { var self = Module['getCache'](Module['PxSimulationEventCallbackImpl'])[$0]; if (!self.hasOwnProperty('onConstraintBreak')) throw 'a JSImplementation must implement all functions, you forgot PxSimulationEventCallbackImpl::onConstraintBreak.'; self['onConstraintBreak']($1,$2); },  
+ 290761: ($0, $1, $2) => { var self = Module['getCache'](Module['PxSimulationEventCallbackImpl'])[$0]; if (!self.hasOwnProperty('onWake')) throw 'a JSImplementation must implement all functions, you forgot PxSimulationEventCallbackImpl::onWake.'; self['onWake']($1,$2); },  
+ 291008: ($0, $1, $2) => { var self = Module['getCache'](Module['PxSimulationEventCallbackImpl'])[$0]; if (!self.hasOwnProperty('onSleep')) throw 'a JSImplementation must implement all functions, you forgot PxSimulationEventCallbackImpl::onSleep.'; self['onSleep']($1,$2); },  
+ 291258: ($0, $1, $2, $3) => { var self = Module['getCache'](Module['PxSimulationEventCallbackImpl'])[$0]; if (!self.hasOwnProperty('onContact')) throw 'a JSImplementation must implement all functions, you forgot PxSimulationEventCallbackImpl::onContact.'; self['onContact']($1,$2,$3); },  
+ 291517: ($0, $1, $2) => { var self = Module['getCache'](Module['PxSimulationEventCallbackImpl'])[$0]; if (!self.hasOwnProperty('onTrigger')) throw 'a JSImplementation must implement all functions, you forgot PxSimulationEventCallbackImpl::onTrigger.'; self['onTrigger']($1,$2); },  
+ 291773: ($0, $1) => { var self = Module['getCache'](Module['PxUserControllerHitReportImpl'])[$0]; if (!self.hasOwnProperty('onShapeHit')) throw 'a JSImplementation must implement all functions, you forgot PxUserControllerHitReportImpl::onShapeHit.'; self['onShapeHit']($1); },  
+ 292029: ($0, $1) => { var self = Module['getCache'](Module['PxUserControllerHitReportImpl'])[$0]; if (!self.hasOwnProperty('onControllerHit')) throw 'a JSImplementation must implement all functions, you forgot PxUserControllerHitReportImpl::onControllerHit.'; self['onControllerHit']($1); },  
+ 292300: ($0, $1) => { var self = Module['getCache'](Module['PxUserControllerHitReportImpl'])[$0]; if (!self.hasOwnProperty('onObstacleHit')) throw 'a JSImplementation must implement all functions, you forgot PxUserControllerHitReportImpl::onObstacleHit.'; self['onObstacleHit']($1); },  
+ 292565: ($0) => { var self = Module['getCache'](Module['SimplPvdTransportImpl'])[$0]; if (!self.hasOwnProperty('connect')) throw 'a JSImplementation must implement all functions, you forgot SimplPvdTransportImpl::connect.'; return self['connect'](); },  
+ 292801: ($0) => { var self = Module['getCache'](Module['SimplPvdTransportImpl'])[$0]; if (!self.hasOwnProperty('disconnect')) throw 'a JSImplementation must implement all functions, you forgot SimplPvdTransportImpl::disconnect.'; self['disconnect'](); },  
+ 293039: ($0) => { var self = Module['getCache'](Module['SimplPvdTransportImpl'])[$0]; if (!self.hasOwnProperty('isConnected')) throw 'a JSImplementation must implement all functions, you forgot SimplPvdTransportImpl::isConnected.'; return self['isConnected'](); },  
+ 293287: ($0) => { var self = Module['getCache'](Module['SimplPvdTransportImpl'])[$0]; if (!self.hasOwnProperty('flush')) throw 'a JSImplementation must implement all functions, you forgot SimplPvdTransportImpl::flush.'; self['flush'](); },  
+ 293510: ($0, $1, $2) => { var self = Module['getCache'](Module['SimplPvdTransportImpl'])[$0]; if (!self.hasOwnProperty('send')) throw 'a JSImplementation must implement all functions, you forgot SimplPvdTransportImpl::send.'; self['send']($1,$2); }
 };
 
 
@@ -6705,7 +6705,7 @@ run();
 
 
 // end include: postamble.js
-// include: /src/PhysX/physx/compiler/emscripten-release/sdk_source_bin/glue.js
+// include: /home/max/dev/physx-js-webidl/PhysX/physx/compiler/emscripten-release/sdk_source_bin/glue.js
 
 // Bindings utilities
 
@@ -34865,8 +34865,8 @@ Vector_PxVec4.prototype['clear'] = Vector_PxVec4.prototype.clear = /** @suppress
   else addOnInit(setupEnums);
 })();
 
-// end include: /src/PhysX/physx/compiler/emscripten-release/sdk_source_bin/glue.js
-// include: /src/PhysX/physx/source/webidlbindings/src/wasm/onload.js
+// end include: /home/max/dev/physx-js-webidl/PhysX/physx/compiler/emscripten-release/sdk_source_bin/glue.js
+// include: /home/max/dev/physx-js-webidl/PhysX/physx/source/webidlbindings/src/wasm/onload.js
 /**
  * Makes the API a little less verbose
  */
@@ -34894,7 +34894,7 @@ for (const [emscript, enumName, entryName] of enums) {
     Module[enumName] ??= {};
     Object.defineProperty(Module[enumName], entryName, { get() { return Module[emscript](); }});
 }
-// end include: /src/PhysX/physx/source/webidlbindings/src/wasm/onload.js
+// end include: /home/max/dev/physx-js-webidl/PhysX/physx/source/webidlbindings/src/wasm/onload.js
 
 
   return moduleArg.ready
@@ -34906,3 +34906,5 @@ if (typeof exports === 'object' && typeof module === 'object')
   module.exports = PhysX;
 else if (typeof define === 'function' && define['amd'])
   define([], () => PhysX);
+
+export default PhysX;
