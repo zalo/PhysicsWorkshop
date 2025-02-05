@@ -3,7 +3,8 @@ import { GUI } from '../node_modules/three/examples/jsm/libs/lil-gui.module.min.
 import World from './World.js';
 import { OBJLoader } from '../node_modules/three/examples/jsm/loaders/OBJLoader.js';
 import ManifoldModule from '../node_modules/manifold-3d/manifold.js';
-import PhysX from '../assets/physx-js-webidl/dist/physx-js-webidl.js';
+import PhysX from './PhysXManager.js';
+import PhysXManager from './PhysXManager.js';
 
 /** The fundamental set up and animation structures for 3D Visualization */
 export default class Main {
@@ -41,13 +42,8 @@ export default class Main {
         // Construct the render world
         this.world = new World(this);
 
-        this.px        = await PhysX();
-        let version    = this.px.PHYSICS_VERSION;
-        var allocator  = new this.px.PxDefaultAllocator();
-        var errorCb    = new this.px.PxDefaultErrorCallback();
-        var foundation = this.px.CreateFoundation(version, allocator, errorCb);
-        console.log('PhysX loaded! Version: ' + ((version >> 24) & 0xff) + '.' + ((version >> 16) & 0xff) + '.' + ((version >> 8) & 0xff));
-        
+        this.PhysX = new PhysXManager(this);
+        this.px = await this.PhysX.setup(this.world.scene);
 
         // Construct Test Shape
         const manifold = await ManifoldModule();
@@ -73,6 +69,19 @@ export default class Main {
             spherelessBox.delete();
         }
 
+        let geometry = new THREE.BoxGeometry(1.0, 1.0, 1.0);
+        let mesh = new THREE.Mesh(geometry, new THREE.MeshPhysicalMaterial({ color: 0x00ff00, wireframe: true }));
+        mesh.position.set(0.0, 1.0, 0.0);
+        this.world.scene.add(mesh);
+        this.PhysX.createPhysicsBody(mesh, false, 1.0);
+
+        let mesh2 = new THREE.Mesh(geometry, new THREE.MeshPhysicalMaterial({ color: 0x00ff00, wireframe: true }));
+        mesh2.position.set(0.0, -0.5, 0.0);
+        mesh2.scale.set(10.0, 1.0, 10.0);
+        this.world.scene.add(mesh2);
+        this.PhysX.createPhysicsBody(mesh2, true, 1.0);
+
+
         // load a resource
         new OBJLoader().load( './assets/armadillo.obj',
             ( object ) => { this.generateTetMesh(object.children[0]); },
@@ -80,6 +89,7 @@ export default class Main {
             ( error  ) => { console.log( 'A loading error happened', error );  }
         );
     }
+
 
     generateTetMesh(mesh){
         if(this.mesh){
@@ -122,6 +132,7 @@ export default class Main {
     update() {
         // Render the scene and update the framerate counter
         this.world.controls.update();
+        if(this.PhysX.initialized){ this.PhysX.update(); }
         this.world.renderer.render(this.world.scene, this.world.camera);
         this.world.stats.update();
     }

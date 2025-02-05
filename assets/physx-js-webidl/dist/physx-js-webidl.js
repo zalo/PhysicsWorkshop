@@ -69,7 +69,7 @@ if (Module['ENVIRONMENT']) {
 }
 
 // `/` should be present at the end if `scriptDirectory` is not empty
-var scriptDirectory = 'assets/physx-js-webidl/';
+var scriptDirectory = 'assets/physx-js-webidl/dist/';
 function locateFile(path) {
   if (Module['locateFile']) {
     return Module['locateFile'](path, scriptDirectory);
