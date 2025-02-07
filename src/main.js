@@ -2,9 +2,10 @@ import * as THREE from '../node_modules/three/build/three.module.js';
 import { GUI } from '../node_modules/three/examples/jsm/libs/lil-gui.module.min.js';
 import World from './World.js';
 import { OBJLoader } from '../node_modules/three/examples/jsm/loaders/OBJLoader.js';
-import ManifoldModule from '../node_modules/manifold-3d/manifold.js';
-import PhysX from './PhysXManager.js';
+//import ManifoldModule from '../node_modules/manifold-3d/manifold.js';
+//import PhysX from './PhysXManager.js';
 import PhysXManager from './PhysXManager.js';
+import CSGManager from './CSGManager.js';
 
 /** The fundamental set up and animation structures for 3D Visualization */
 export default class Main {
@@ -45,31 +46,29 @@ export default class Main {
         this.PhysX = new PhysXManager(this);
         this.px = await this.PhysX.setup(this.world.scene);
 
-        // Construct Test Shape
-        const manifold = await ManifoldModule();
-        manifold.setup();
-        /** @type {manifold.Manifold} */
-        let sphere = new manifold.Manifold.sphere(0.6, 32);
-        /** @type {manifold.Manifold} */
-        let box    = new manifold.Manifold.cube([1.0, 1.0, 1.0], true);
-        /** @type {manifold.Manifold} */
-        let spherelessBox = new manifold.Manifold.difference(box, sphere).translate([0.0, 1.0, 0.0]);
-        /** @type {manifold.Mesh} */
-        let sphereMesh = spherelessBox.getMesh();
-        if(sphereMesh.numProp == 3){
-            let bufferGeo = new THREE.BufferGeometry();
-            bufferGeo.setAttribute('position', new THREE.BufferAttribute(sphereMesh.vertProperties, 3));
-            bufferGeo.setIndex(new THREE.BufferAttribute(sphereMesh.triVerts, 1));
-            bufferGeo.computeVertexNormals();
-            let threeMesh = new THREE.Mesh(bufferGeo, new THREE.MeshPhysicalMaterial({ color: 0x00ff00, wireframe: true }));
-            threeMesh.position.set(0.75, 0.0, 0.0);
-            this.world.scene.add(threeMesh);
-            sphere.delete();
-            box.delete();
-            spherelessBox.delete();
-        }
+        this.csg = new CSGManager(this);
+        this.csg.setup();
 
-        let geometry = new THREE.BoxGeometry(1.0, 1.0, 1.0);
+        this.pointer = new THREE.Vector2();
+        this.raycaster = new THREE.Raycaster();
+        document.addEventListener( 'pointermove', this.onPointerMove.bind(this) );
+        document.addEventListener( 'pointerdown', ()=>{
+            CSGManager.subtractBVH(this.boxMesh, this.sphereMesh);
+        });
+
+        // Construct Test Shape
+        this.boxMesh = CSGManager.createBox(1, 1, 1, true);
+        this.boxMesh.position.set(0.0, 0.5, 0.0);
+        this.world.scene.add(this.boxMesh);
+        this.sphereMesh = CSGManager.createSphere(0.3, 32);
+        this.sphereMesh.position.set(0.0, 1.0, 0.0);
+        this.world.scene.add(this.sphereMesh);
+
+        let spherelessBox = CSGManager.subtract(this.boxMesh, this.sphereMesh);
+        this.sphereMesh.position.set(0.5, 1.0, 0.0);
+        spherelessBox = CSGManager.subtract(spherelessBox, this.sphereMesh);
+
+        /*let geometry = new THREE.BoxGeometry(1.0, 1.0, 1.0);
         let mesh = new THREE.Mesh(geometry, new THREE.MeshPhysicalMaterial({ color: 0x00ff00, wireframe: true }));
         mesh.position.set(0.0, 1.0, 0.0);
         this.world.scene.add(mesh);
@@ -79,17 +78,55 @@ export default class Main {
         mesh2.position.set(0.0, -0.5, 0.0);
         mesh2.scale.set(10.0, 1.0, 10.0);
         this.world.scene.add(mesh2);
-        this.PhysX.createPhysicsBody(mesh2, true, 1.0);
+        this.PhysX.createPhysicsBody(mesh2, true, 1.0);*/
 
 
         // load a resource
-        new OBJLoader().load( './assets/armadillo.obj',
+        /*new OBJLoader().load( './assets/armadillo.obj',
             ( object ) => { this.generateTetMesh(object.children[0]); },
             ( xhr    ) => { console.log( ( xhr.loaded / xhr.total * 100 ) + '% loaded' ); },
             ( error  ) => { console.log( 'A loading error happened', error );  }
-        );
+        );*/
     }
 
+    onPointerMove( event ) {
+        if(this.pointer == undefined){ return; }
+        this.pointer.x =   ( event.clientX / window.innerWidth  ) * 2 - 1;
+        this.pointer.y = - ( event.clientY / window.innerHeight ) * 2 + 1;
+    }
+
+    /** Update the simulation */
+    update() {
+        // Render the scene and update the framerate counter
+        this.world.controls.update();
+
+        if(this.raycaster){
+            this.raycaster.setFromCamera( this.pointer, this.world.camera );
+            let intersects = this.raycaster.intersectObjects([this.boxMesh, this.world.ground]);
+            if (intersects.length > 0 && intersects[0]) {
+            /** @type {THREE.Intersection} */
+            let intersection = intersects[0];
+            //console.log(intersection);
+            this.sphereMesh.position.copy(intersection.point);
+            }
+        }
+
+        if(this.PhysX.initialized){ this.PhysX.update(); }
+        this.world.renderer.render(this.world.scene, this.world.camera);
+        this.world.stats.update();
+    }
+
+    // Log Errors as <div>s over the main viewport
+    fakeError(...args) {
+        if (args.length > 0 && args[0]) { this.display(JSON.stringify(args[0])); }
+        window.realConsoleError.apply(console, arguments);
+    }
+
+    display(text) {
+        let errorNode = window.document.createElement("div");
+        errorNode.innerHTML = text.fontcolor("red");
+        window.document.getElementById("info").appendChild(errorNode);
+    }
 
     generateTetMesh(mesh){
         if(this.mesh){
@@ -126,27 +163,6 @@ export default class Main {
         this.tetMesh.position.copy(this.mesh.position).add(new THREE.Vector3(0.0, 0.0, 0.0));
         this.tetMesh.scale.copy(this.mesh.scale);
         this.world.scene.add(this.tetMesh);
-    }
-
-    /** Update the simulation */
-    update() {
-        // Render the scene and update the framerate counter
-        this.world.controls.update();
-        if(this.PhysX.initialized){ this.PhysX.update(); }
-        this.world.renderer.render(this.world.scene, this.world.camera);
-        this.world.stats.update();
-    }
-
-    // Log Errors as <div>s over the main viewport
-    fakeError(...args) {
-        if (args.length > 0 && args[0]) { this.display(JSON.stringify(args[0])); }
-        window.realConsoleError.apply(console, arguments);
-    }
-
-    display(text) {
-        let errorNode = window.document.createElement("div");
-        errorNode.innerHTML = text.fontcolor("red");
-        window.document.getElementById("info").appendChild(errorNode);
     }
 
     /** @returns {THREE.BufferGeometry} */

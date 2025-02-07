@@ -78,7 +78,7 @@ export default class World {
 
         this.draggableObjects = [];
         this.controls = new OrbitControls(this.camera, this.renderer.domElement);
-        this.controls.target.set(0, 1, 0);
+        this.controls.target.set(0, 0.5, 0);
         this.controls.panSpeed = 2;
         this.controls.zoomSpeed = 1;
         this.controls.enableDamping = true;
