@@ -56,16 +56,27 @@ export default class Main {
         this.raycaster = new THREE.Raycaster();
         document.addEventListener( 'pointermove', this.onPointerMove.bind(this) );
         document.addEventListener( 'pointerdown', ()=>{
-            CSGManager.subtractBVH(this.boxMesh, this.sphereMesh);
+            let meshes = CSGManager.subtract(this.selectedObject, this.sphereMesh);
+            if(meshes.length > 1){
+                for(let i = 1; i < meshes.length; i++){
+                    this.objects.add(meshes[i]);
+                    this.physics.createPhysicsObject(meshes[i]);
+                }
+            }
         });
 
         // Construct Test Shape
+        this.objects = new THREE.Group();
+        this.world.scene.add(this.objects);
         this.boxMesh = CSGManager.createBox(1, 1, 1, true);//createSphere(0.5, 32);//
         this.boxMesh.position.set(0.0, 1.0, 0.0);
         this.boxMesh.rotateOnAxis(new THREE.Vector3(1, 1, 1).normalize(), Math.PI / 4);
-        this.world.scene.add(this.boxMesh);
-        this.sphereMesh = CSGManager.createSphere(0.3, 32);
+        this.objects.add(this.boxMesh);
+        this.selectedObject = this.boxMesh;
+        this.sphereMesh = CSGManager.createSphere(0.2, 32);
         this.sphereMesh.position.set(0.0, 1.0, 0.0);
+        this.sphereMesh.material.transparent = true;
+        this.sphereMesh.material.opacity = 0.5;
         this.world.scene.add(this.sphereMesh);
 
         //let spherelessBox = CSGManager.subtract(this.boxMesh, this.sphereMesh);
@@ -108,12 +119,19 @@ export default class Main {
 
         this.physics.update();
 
+        this.objects.children.forEach((object) => {
+            if(!object.userData.isPhysicsObject){
+                this.objects.remove(object);
+            }
+        });
+
         if(this.raycaster){
             this.raycaster.setFromCamera( this.pointer, this.world.camera );
-            let intersects = this.raycaster.intersectObjects([this.boxMesh, this.world.ground]);
+            let intersects = this.raycaster.intersectObjects(this.objects.children);
             if (intersects.length > 0 && intersects[0]) {
             /** @type {THREE.Intersection} */
             let intersection = intersects[0];
+            this.selectedObject = intersection.object;
             //console.log(intersection);
             this.sphereMesh.position.copy(intersection.point);
             }

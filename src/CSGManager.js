@@ -1,7 +1,8 @@
 import * as THREE from '../node_modules/three/build/three.module.js';
-import Module from '../node_modules/manifold-3d/manifold.js';
+import Module /*, {Manifold}*/ from '../node_modules/manifold-3d/manifold.js';
 import { mergeVertices, toCreasedNormals } from '../node_modules/three/examples/jsm/utils/BufferGeometryUtils.js';
 import { SUBTRACTION, Brush, Evaluator, GridMaterial, HalfEdgeMap } from '../node_modules/three-bvh-csg/build/index.module.js';
+//import { Dcel } from './Dcel.js';
 
 // Initialize manifold outside of the class, which is otherwise just a collection of static functions.
 const manifold = await Module();
@@ -68,62 +69,77 @@ class CSGManager {
      * @returns {THREE.Mesh} - The resulting three.js mesh.
      */
     static manifoldToThree(manifoldMesh, threeMesh = null) {
-        let mesh = manifoldMesh.getMesh(); //3
-        let geometry = new THREE.BufferGeometry();
-        let position = new Float32Array(mesh.vertProperties.length);// / 2);
-        //let normal = new Float32Array(mesh.vertProperties.length / 2);
+        /** @type {Manifold[]} */
+        let islands = manifoldMesh.decompose();
 
-        if (threeMesh != null) {
-            let matrix = new THREE.Matrix4();
-            matrix.compose(threeMesh.position, threeMesh.quaternion, threeMesh.scale).invert();
+        let geometries = [];
+        for(let m = 0; m < islands.length; m++){
+            //let dummy = new manifold.Manifold();
+            let volume   = islands[m].volume();
+            let mesh     = islands[m].getMesh();
+            let geometry = new THREE.BufferGeometry();
+            let position = new Float32Array(mesh.vertProperties.length);// / 2);
+            //let normal = new Float32Array(mesh.vertProperties.length / 2);
 
-            for (let i = 0; i < mesh.vertProperties.length; i += 3) {
-                let vertex = new THREE.Vector3(mesh.vertProperties[i], mesh.vertProperties[i + 1], mesh.vertProperties[i + 2]);
-                vertex.applyMatrix4(matrix);
-                position[i] = vertex.x;
-                position[i + 1] = vertex.y;
-                position[i + 2] = vertex.z;
+            if (threeMesh != null) {
+                let matrix = new THREE.Matrix4();
+                matrix.compose(threeMesh.position, threeMesh.quaternion, threeMesh.scale).invert();
 
-                //normal[i    ] = mesh.vertProperties[i + 3];
-                //normal[i + 1] = mesh.vertProperties[i + 4];
-                //normal[i + 2] = mesh.vertProperties[i + 5];
+                for (let i = 0; i < mesh.vertProperties.length; i += 3) {
+                    let vertex = new THREE.Vector3(mesh.vertProperties[i], mesh.vertProperties[i + 1], mesh.vertProperties[i + 2]);
+                    vertex.applyMatrix4(matrix);
+                    position[i] = vertex.x;
+                    position[i + 1] = vertex.y;
+                    position[i + 2] = vertex.z;
+                }
+            }else{
+                position.set(mesh.vertProperties);
             }
-        }else{
-            position.set(mesh.vertProperties);
+
+            if(position.length > 0) {
+                geometry.setAttribute('position', new THREE.BufferAttribute(position, 3));
+                //geometry.setAttribute('normal', new THREE.BufferAttribute(normal, 3));
+                geometry.setIndex(new THREE.BufferAttribute(mesh.triVerts, 1));
+                geometry.computeVertexNormals();
+
+                let creasedGeometry = toCreasedNormals(geometry, 30 * 0.0174533); // Breaks manifoldness
+                creasedGeometry.manifoldGeometry = geometry;
+                if(creasedGeometry.userData == undefined){ creasedGeometry.userData = {}; }
+                creasedGeometry.userData.volume = volume;
+                geometries.push(creasedGeometry);
+            }
         }
 
-        geometry.setAttribute('position', new THREE.BufferAttribute(position, 3));
-        //geometry.setAttribute('normal', new THREE.BufferAttribute(normal, 3));
-        geometry.setIndex(new THREE.BufferAttribute(mesh.triVerts, 1));
-        geometry.computeVertexNormals();
+        // Sort meshes by volume
+        geometries.sort((a, b) => b.userData.volume - a.userData.volume);
 
-        let creasedGeometry = toCreasedNormals(geometry, 30 * 0.0174533); // Breaks manifoldness
-        creasedGeometry.manifoldGeometry = geometry;
-
+        let meshes = [];
         if (threeMesh === null) {
-            let resultMesh = new THREE.Mesh(creasedGeometry, threeMesh != null ? threeMesh.material : new THREE.MeshPhysicalMaterial({ color: 0x00ff00, enableGrid: false }));
-
-            //resultMesh.position.copy(threeMesh.position);
-            //resultMesh.quaternion.copy(threeMesh.quaternion);
-            //resultMesh.scale.copy(threeMesh.scale);
-
-            return resultMesh;
-        }else{
-            threeMesh.geometry = creasedGeometry;
+            let resultMesh = new THREE.Mesh(geometries[0], threeMesh != null ? threeMesh.material : new THREE.MeshPhysicalMaterial({ color: 0x00ff00, enableGrid: false }));
+            meshes.push(resultMesh);
+        } else {
+            threeMesh.geometry = geometries[0];
             threeMesh.needsUpdate = true;
-            return threeMesh;
-
+            meshes.push(threeMesh);
+            for(let i = 1; i < geometries.length; i++){
+                if(geometries[i] && geometries[i].attributes.position.array.length > 0){
+                    let resultMesh = threeMesh.clone();
+                    resultMesh.geometry = geometries[i];
+                    meshes.push(resultMesh);
+                }
+            }
         }
+        return meshes;
     }
 
     static createSphere(radius, segments) {
         let sphereManifold = new manifold.Manifold.sphere(radius, segments);
-        return this.manifoldToThree(sphereManifold);
+        return this.manifoldToThree(sphereManifold)[0];
     }
 
     static createBox(x, y, z, center = true) {
         let boxManifold = new manifold.Manifold.cube([x, y, z], center);
-        return this.manifoldToThree(boxManifold);
+        return this.manifoldToThree(boxManifold)[0];
     }
 
     /**
@@ -164,11 +180,11 @@ class CSGManager {
         let result = CSGManager.manifoldToThree(resultManifold, meshA);
         resultManifold.delete();
 
+        if (result[0].userData.isPhysicsObject) { result[0].userData.physics.needsUpdate = true; }
+
         console.log("Subtract took", performance.now() - startTime, "ms");
         return result;
     }
-
-
 
     /**
      * Performs a boolean subtract operation on two three.js meshes.
@@ -195,24 +211,21 @@ class CSGManager {
         evaluator.attributes = [ 'position', 'normal' ];
         let result = evaluator.evaluate( brush1, brush2, SUBTRACTION );
 
-        //// generate half edges
-		//if (brush1.geometry.halfEdges) {
-        //    //result.prepareGeometry();
-		//	//console.log("BVH Halfedges", brush1.geometry.halfEdges, result.geometry.halfEdges);
-//
-        //    ///** @type {HalfEdgeMap} */
-        //    //let halfEdgeMap = new HalfEdgeMap();//result.geometry.halfEdges;
-        //    //halfEdgeMap.matchDisjointEdges = true;
-        //    //halfEdgeMap.updateFrom( result.geometry );
-        //    //console.log("IS RESULT FULLY CONNECTED?", halfEdgeMap.unmatchedEdges === 0);
-//
-        //    result.geometry.halfEdges = null;
-		//}else{
-        //    brush1.geometry.halfEdges = null;
-        //}
-
         meshA.geometry.dispose();
         meshA.geometry = result.geometry;
+
+        //console.log("Triangles:", meshA.geometry.index);
+        //let triangleToBodyIndex = new Uint8Array( meshA.geometry.index.array.length / 3 );
+        //let mergedVertices = mergeVertices(meshA.geometry.clone(), 1e-3);
+
+        //let index = []; for (let i = 0; i < index.length; i++) { index.push(i); }
+        //meshA.geometry.setIndex(index);
+        //let mergedVertices = mergeVertices(meshA.geometry.clone(), 1e-3);
+        //let dcel = new Dcel(mergedVertices);
+        //dcel.forAdjacentFaces(100, (adjacentFaceIndex) => {
+        //    console.log("Adjacent Face:", adjacentFaceIndex);
+        //});
+
 
         let matrix = new THREE.Matrix4();
         matrix.compose(meshA.position, meshA.quaternion, meshA.scale).invert();
@@ -263,6 +276,7 @@ class CSGManager {
         console.log("Intersect took", performance.now() - startTime, "ms");
         return result;
     }
+
 }
 
 export default CSGManager;

@@ -74,6 +74,8 @@ export default class PhysicsManager {
                 if(object.userData.physics.needsUpdate) {
                     object.userData.physics.needsUpdate = false;
 
+                    if(!object.geometry){ object.userData.isPhysicsObject = false; continue; }
+
                     // Construct a bounding volume hierarchy for the mesh
                     object.geometry.computeBoundsTree();
 
@@ -143,7 +145,8 @@ export default class PhysicsManager {
                     object.userData.physics.positions[i+2] = this.tempVec.z;
                 }
             } else {
-                console.error("How did this get here?  Create physics objects with PhysicsManager.createPhysicsObject()!", object);
+                //console.error("How did this get here?  Create physics objects with PhysicsManager.createPhysicsObject()!", object);
+                // Skip for empty bodies...
             }
         }
     }
