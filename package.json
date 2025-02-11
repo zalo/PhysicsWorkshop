@@ -1,6 +1,6 @@
 {
 	"scripts": {
-		"build": "esbuild ./src/main.js --bundle --minify --sourcemap --format=esm --outdir=./build"
+		"build": "esbuild ./src/main.js --bundle --minify --sourcemap --format=esm --outdir=./build --platform=node"
 	},
 	"dependencies": {
 		"esbuild": "^0.24.2",
