@@ -9,9 +9,12 @@
       <img src="https://img.shields.io/github/license/zalo/PhysicsWorkshop" title="License: Apache V2"></a>-->  <!-- No idea what license this should be! -->
 </p>
 
-Generate Tetrahedral FEM Meshes in your browser using [physx-js-webidl](https://github.com/fabmax/physx-js-webidl/)!
+Eventually this will be a toolbox where you can simulate using tools to shape materials.
 
-This project is largely a toy/proof of concept; meant to explore TetMesh Generation in the browser for https://github.com/zalo/TetSim/
+Known issues:
+- Physics are Squishy: Need to use a weighted Kasch to account for kinematic collisions.
+- Physics are expensive: Need to enable sleeping and to reduce number of points in shape matching.
+- Physics are weird: Need to add internal non-colliding(?) points to the shape matching for better moment of inertia.
 
  # Building
 
@@ -23,6 +26,10 @@ npm run build
 After building, make sure to edit the index .html to point from `"./src/main.js"` to `"./build/main.js"`.
 
  # Dependencies
- - [physx-js-webidl](https://github.com/fabmax/physx-js-webidl/) (Tetrahedral Meshing Backend)
+ - [manifold](https://github.com/elalish/manifold) (CSG Backend)
+ - [three-mesh-bvh](https://github.com/gkjohnson/three-mesh-bvh) (Bounding Volume Hierarchy)
  - [three.js](https://github.com/mrdoob/three.js/) (3D Rendering Engine)
  - [esbuild](https://github.com/evanw/esbuild/) (Bundler)
+
+ - [three-bvh-csg](https://github.com/gkjohnson/three-bvh-csg) (CSG Backend; Unused so far)
+ - [physx-js-webidl](https://github.com/fabmax/physx-js-webidl/) (Tetrahedral Meshing Backend; Unused so far)
