@@ -73,7 +73,7 @@ export default class Main {
         this.boxMesh.rotateOnAxis(new THREE.Vector3(1, 1, 1).normalize(), Math.PI / 4);
         this.objects.add(this.boxMesh);
         this.selectedObject = this.boxMesh;
-        this.sphereMesh = CSGManager.createSphere(0.2, 32);
+        this.sphereMesh = CSGManager.createSphere(0.3, 22);
         this.sphereMesh.position.set(0.0, 1.0, 0.0);
         this.sphereMesh.material.transparent = true;
         this.sphereMesh.material.opacity = 0.5;
