@@ -39,7 +39,7 @@ jspm_packages/
 # Three.js Build
 !node_modules/three/
 !node_modules/three/*/
-!node_modules/three/build/*
+#!node_modules/three/build/three*
 # Three.js Controls
 !node_modules/three/examples/*/
 !node_modules/three/examples/jsm/
@@ -86,4 +86,5 @@ typings/
 # FuseBox cache
 .fusebox/
 
-[Bb]uild
+[Bb]uild/main*
+!build/manifold.wasm
