@@ -1,7 +1,7 @@
 import * as THREE from '../node_modules/three/build/three.module.js';
 import Module from '../node_modules/manifold-3d/manifold.js';
 import { mergeVertices, toCreasedNormals } from '../node_modules/three/examples/jsm/utils/BufferGeometryUtils.js';
-import { SUBTRACTION, Brush, Evaluator } from '../node_modules/three-bvh-csg/build/index.module.js';
+import { SUBTRACTION, Brush, Evaluator, GridMaterial, HalfEdgeMap } from '../node_modules/three-bvh-csg/build/index.module.js';
 
 // Initialize manifold outside of the class, which is otherwise just a collection of static functions.
 const manifold = await Module();
@@ -101,12 +101,11 @@ class CSGManager {
         creasedGeometry.manifoldGeometry = geometry;
 
         if (threeMesh === null) {
-            let resultMesh = new THREE.Mesh(creasedGeometry, threeMesh != null ? threeMesh.material : new THREE.MeshPhysicalMaterial({ color: 0x00ff00, wireframe: false }));
+            let resultMesh = new THREE.Mesh(creasedGeometry, threeMesh != null ? threeMesh.material : new THREE.MeshPhysicalMaterial({ color: 0x00ff00, enableGrid: false }));
 
             //resultMesh.position.copy(threeMesh.position);
             //resultMesh.quaternion.copy(threeMesh.quaternion);
             //resultMesh.scale.copy(threeMesh.scale);
-        
 
             return resultMesh;
         }else{
@@ -191,16 +190,33 @@ class CSGManager {
         brush2.quaternion.copy( meshB.quaternion );
         brush2.scale.copy( meshB.scale );
         brush2.updateMatrixWorld();
-        
+
         let evaluator = new Evaluator();
         evaluator.attributes = [ 'position', 'normal' ];
         let result = evaluator.evaluate( brush1, brush2, SUBTRACTION );
+
+        //// generate half edges
+		//if (brush1.geometry.halfEdges) {
+        //    //result.prepareGeometry();
+		//	//console.log("BVH Halfedges", brush1.geometry.halfEdges, result.geometry.halfEdges);
+//
+        //    ///** @type {HalfEdgeMap} */
+        //    //let halfEdgeMap = new HalfEdgeMap();//result.geometry.halfEdges;
+        //    //halfEdgeMap.matchDisjointEdges = true;
+        //    //halfEdgeMap.updateFrom( result.geometry );
+        //    //console.log("IS RESULT FULLY CONNECTED?", halfEdgeMap.unmatchedEdges === 0);
+//
+        //    result.geometry.halfEdges = null;
+		//}else{
+        //    brush1.geometry.halfEdges = null;
+        //}
 
         meshA.geometry.dispose();
         meshA.geometry = result.geometry;
 
         let matrix = new THREE.Matrix4();
         matrix.compose(meshA.position, meshA.quaternion, meshA.scale).invert();
+        let invQuat = new THREE.Quaternion().copy(meshA.quaternion).invert();
         for (let i = 0; i < meshA.geometry.attributes.position.array.length; i += 3) {
             let vertex = new THREE.Vector3(
                 meshA.geometry.attributes.position.array[i], 
@@ -210,7 +226,18 @@ class CSGManager {
             meshA.geometry.attributes.position.array[i    ] = vertex.x;
             meshA.geometry.attributes.position.array[i + 1] = vertex.y;
             meshA.geometry.attributes.position.array[i + 2] = vertex.z;
+
+            let normal = new THREE.Vector3(
+                meshA.geometry.attributes.normal.array[i], 
+                meshA.geometry.attributes.normal.array[i + 1],
+                meshA.geometry.attributes.normal.array[i + 2]);
+            normal.applyQuaternion(invQuat);
+            meshA.geometry.attributes.normal.array[i    ] = normal.x;
+            meshA.geometry.attributes.normal.array[i + 1] = normal.y;
+            meshA.geometry.attributes.normal.array[i + 2] = normal.z;
         }
+
+        if (meshA.userData.isPhysicsObject) { meshA.userData.physics.needsUpdate = true; }
 
         console.log("BVH Subtract took", performance.now() - startTime, "ms");
         return meshA;

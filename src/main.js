@@ -4,7 +4,8 @@ import World from './World.js';
 import { OBJLoader } from '../node_modules/three/examples/jsm/loaders/OBJLoader.js';
 //import ManifoldModule from '../node_modules/manifold-3d/manifold.js';
 //import PhysX from './PhysXManager.js';
-import PhysXManager from './PhysXManager.js';
+//import PhysXManager from './PhysXManager.js';
+import PhysicsManager from './PhysicsManager.js';
 import CSGManager from './CSGManager.js';
 
 /** The fundamental set up and animation structures for 3D Visualization */
@@ -43,8 +44,10 @@ export default class Main {
         // Construct the render world
         this.world = new World(this);
 
-        this.PhysX = new PhysXManager(this);
-        this.px = await this.PhysX.setup(this.world.scene);
+        //this.PhysX = new PhysXManager(this);
+        //this.px = await this.PhysX.setup(this.world.scene);
+
+        this.physics = new PhysicsManager(this.world.scene);
 
         this.csg = new CSGManager(this);
         this.csg.setup();
@@ -57,16 +60,19 @@ export default class Main {
         });
 
         // Construct Test Shape
-        this.boxMesh = CSGManager.createBox(1, 1, 1, true);
-        this.boxMesh.position.set(0.0, 0.5, 0.0);
+        this.boxMesh = CSGManager.createBox(1, 1, 1, true);//createSphere(0.5, 32);//
+        this.boxMesh.position.set(0.0, 1.0, 0.0);
+        this.boxMesh.rotateOnAxis(new THREE.Vector3(1, 1, 1).normalize(), Math.PI / 4);
         this.world.scene.add(this.boxMesh);
         this.sphereMesh = CSGManager.createSphere(0.3, 32);
         this.sphereMesh.position.set(0.0, 1.0, 0.0);
         this.world.scene.add(this.sphereMesh);
 
-        let spherelessBox = CSGManager.subtract(this.boxMesh, this.sphereMesh);
-        this.sphereMesh.position.set(0.5, 1.0, 0.0);
-        spherelessBox = CSGManager.subtract(spherelessBox, this.sphereMesh);
+        //let spherelessBox = CSGManager.subtract(this.boxMesh, this.sphereMesh);
+        //this.sphereMesh.position.set(0.5, 1.0, 0.0);
+        //spherelessBox = CSGManager.subtract(spherelessBox, this.sphereMesh);
+
+        this.physics.createPhysicsObject(this.boxMesh);
 
         /*let geometry = new THREE.BoxGeometry(1.0, 1.0, 1.0);
         let mesh = new THREE.Mesh(geometry, new THREE.MeshPhysicalMaterial({ color: 0x00ff00, wireframe: true }));
@@ -100,6 +106,8 @@ export default class Main {
         // Render the scene and update the framerate counter
         this.world.controls.update();
 
+        this.physics.update();
+
         if(this.raycaster){
             this.raycaster.setFromCamera( this.pointer, this.world.camera );
             let intersects = this.raycaster.intersectObjects([this.boxMesh, this.world.ground]);
@@ -111,7 +119,7 @@ export default class Main {
             }
         }
 
-        if(this.PhysX.initialized){ this.PhysX.update(); }
+        //if(this.PhysX.initialized){ this.PhysX.update(); }
         this.world.renderer.render(this.world.scene, this.world.camera);
         this.world.stats.update();
     }
