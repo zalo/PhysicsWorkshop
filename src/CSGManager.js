@@ -115,7 +115,7 @@ class CSGManager {
 
         let meshes = [];
         if (threeMesh === null) {
-            let resultMesh = new THREE.Mesh(geometries[0], threeMesh != null ? threeMesh.material : new THREE.MeshPhysicalMaterial({ color: 0x00ff00, enableGrid: false }));
+            let resultMesh = new THREE.Mesh(geometries[0], threeMesh != null ? threeMesh.material : new THREE.MeshPhysicalMaterial({ color: 0x00ff00, transparent: true, opacity: 0.5 }));
             meshes.push(resultMesh);
         } else {
             threeMesh.geometry = geometries[0];

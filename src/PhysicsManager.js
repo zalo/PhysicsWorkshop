@@ -1,6 +1,6 @@
 import * as THREE from '../node_modules/three/build/three.module.js';
 import {
-    computeBoundsTree, disposeBoundsTree,
+    MeshBVH, computeBoundsTree, disposeBoundsTree,
     computeBatchedBoundsTree, disposeBatchedBoundsTree, acceleratedRaycast,
 } from '../node_modules/three-mesh-bvh/src/index.js';
 
@@ -21,13 +21,15 @@ export default class PhysicsManager {
         this.curOffset      = new THREE.Vector3   (0, 0, 0);
         this.curQuaternion  = new THREE.Quaternion(0, 0, 0, 1);
         this.tempVec        = new THREE.Vector3   (0, 0, 0);
+        this.tempVec2       = new THREE.Vector3   (0, 0, 0);
         this.forward        = new THREE.Vector3   (0, 0, 1);
         this.tempAvg        = new THREE.Vector3   (0, 0, 0);
         this.tempRay        = new THREE.Ray       (new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 0, 1));
+        this.tempMatrix     = new THREE.Matrix4  ();
 
-        this.debugSpheres   = new THREE.InstancedBufferGeometry().copy(new THREE.SphereGeometry(0.02, 8, 8));
+        this.debugSpheres   = new THREE.InstancedBufferGeometry().copy(new THREE.SphereGeometry(1.0, 8, 8));
         this.debugMaterial  = new THREE.MeshBasicMaterial({ color: 0xaa0000 });
-        this.debugMesh      = new THREE.InstancedMesh(this.debugSpheres, this.debugMaterial, 10240);
+        this.debugMesh      = new THREE.InstancedMesh(this.debugSpheres, this.debugMaterial, 100);
         this.debugMesh.visible = true;
         scene.add(this.debugMesh);
 
@@ -57,10 +59,10 @@ export default class PhysicsManager {
             previousPositions : new Float32Array(physicsReferencePositions)
         };
 
-        console.log("MESH CREATED! Vertices:", physicsReferencePositions.length/3);
+        console.log("MESH CREATED! Vertices:", physicsReferencePositions.length/4);
 
         // Transform the positions to world space
-        for(let i = 0; i < physicsReferencePositions.length; i+=3) {
+        for(let i = 0; i < physicsReferencePositions.length; i+=4) {
             mesh.localToWorld(this.tempVec.fromArray(physicsReferencePositions, i));
             mesh.userData.physics.positions        [i]   = this.tempVec.x;
             mesh.userData.physics.positions        [i+1] = this.tempVec.y;
@@ -69,7 +71,8 @@ export default class PhysicsManager {
             mesh.userData.physics.previousPositions[i+1] = this.tempVec.y;// + Math.random() * 0.0001;
             mesh.userData.physics.previousPositions[i+2] = this.tempVec.z;// + Math.random() * 0.0001;
 
-            this.debugMesh.setMatrixAt(i/3, new THREE.Matrix4().makeTranslation(this.tempVec.x, this.tempVec.y, this.tempVec.z));
+            let scale = mesh.userData.physics.positions[i+3];
+            this.debugMesh.setMatrixAt(i/4, this.tempMatrix.compose(this.tempVec, this.curQuaternion, this.tempVec2.set(scale, scale, scale)));
         }
 
         this.physicsObjects.push(mesh);
@@ -94,13 +97,13 @@ export default class PhysicsManager {
                     object.userData.physics.positions         = new Float32Array(object.userData.physics.referencePositions);
                     object.userData.physics.previousPositions = new Float32Array(object.userData.physics.referencePositions);
             
-                    console.log("MESH UPDATED! Vertices:", object.userData.physics.positions.length/3);
+                    console.log("MESH UPDATED! Vertices:", object.userData.physics.positions.length/4);
                     this.debugMesh.instanceMatrix.needsUpdate = true;
 
                     // Transform the positions to world space
                     // TODO: Figure out a way to assign these so that velocities are maintained cheaply!
                     object.updateMatrixWorld(); // Ensure the world matrix is up to date
-                    for(let i = 0; i < object.userData.physics.positions.length; i+=3) {
+                    for(let i = 0; i < object.userData.physics.positions.length; i+=4) {
                         object.localToWorld(this.tempVec.fromArray(object.userData.physics.referencePositions, i));
                         object.userData.physics.positions        [i]   = this.tempVec.x;
                         object.userData.physics.positions        [i+1] = this.tempVec.y;
@@ -109,7 +112,8 @@ export default class PhysicsManager {
                         object.userData.physics.previousPositions[i+1] = this.tempVec.y;
                         object.userData.physics.previousPositions[i+2] = this.tempVec.z;
             
-                        this.debugMesh.setMatrixAt(i/3, new THREE.Matrix4().makeTranslation(this.tempVec.x, this.tempVec.y, this.tempVec.z));
+                        let scale = object.userData.physics.positions[i+3];
+                        this.debugMesh.setMatrixAt(i/4, this.tempMatrix.compose(this.tempVec, this.curQuaternion, this.tempVec2.set(scale, scale, scale)));
                     }
                 }
 
@@ -117,22 +121,24 @@ export default class PhysicsManager {
                 this.verletIntegrate(object.userData.physics.positions, object.userData.physics.previousPositions);
 
                 // Add Gravity and Collide the positions against the ground
-                for (let i = 0; i < object.userData.physics.positions.length; i+=3) {
+                let collided = [];
+                for (let i = 0; i < object.userData.physics.positions.length; i+=4) {
 
-                    // Clamp distance from the origin
-                    let distance = Math.sqrt(object.userData.physics.positions[i  ] * object.userData.physics.positions[i  ] +
-                                             object.userData.physics.positions[i+1] * object.userData.physics.positions[i+1] +
-                                             object.userData.physics.positions[i+2] * object.userData.physics.positions[i+2]);
-                    if (distance > 3) {
-                        object.userData.physics.positions[i  ] *= 3 / distance;
-                        object.userData.physics.positions[i+1] *= 3 / distance;
-                        object.userData.physics.positions[i+2] *= 3 / distance;
-                    }
+                    //// Clamp distance from the origin
+                    //let distance = Math.sqrt(object.userData.physics.positions[i  ] * object.userData.physics.positions[i  ] +
+                    //                         object.userData.physics.positions[i+1] * object.userData.physics.positions[i+1] +
+                    //                         object.userData.physics.positions[i+2] * object.userData.physics.positions[i+2]);
+                    //if (distance > 3) {
+                    //    object.userData.physics.positions[i  ] *= 3 / distance;
+                    //    object.userData.physics.positions[i+1] *= 3 / distance;
+                    //    object.userData.physics.positions[i+2] *= 3 / distance;
+                    //}
 
 
                     object.userData.physics.positions[i+1] -= 0.001; // Gravity
-                    if (object.userData.physics.positions[i+1] < 0) {
-                        object.userData.physics.positions[i+1] = 0;
+                    if (object.userData.physics.positions[i+1] < object.userData.physics.positions[i+3]) {
+                        collided.push(i);
+                        object.userData.physics.positions[i+1] = object.userData.physics.positions[i+3];
                         // Friction - Mostly just horizontal damping while on the ground
                         let perpendicularVelocityX = object.userData.physics.positions[i]   - object.userData.physics.previousPositions[i];
                         let perpendicularVelocityZ = object.userData.physics.positions[i+2] - object.userData.physics.previousPositions[i+2];
@@ -145,17 +151,21 @@ export default class PhysicsManager {
                 this.kabschPoints(
                     object.userData.physics.referencePositions, 
                     object.userData.physics.positions,
-                    object.position, object.quaternion);
+                    object.position, object.quaternion, collided);
 
                 object.updateMatrixWorld(); // Ensure the world matrix is up to date
 
                 // Transform the positions to world space
-                for(let i = 0; i < object.userData.physics.positions.length; i+=3) {
+                for(let i = 0; i < object.userData.physics.positions.length; i+=4) {
                     object.localToWorld(this.tempVec.fromArray(object.userData.physics.referencePositions, i));
                     object.userData.physics.positions[i]   = this.tempVec.x;
                     object.userData.physics.positions[i+1] = this.tempVec.y;
                     object.userData.physics.positions[i+2] = this.tempVec.z;
+
+                    let scale = object.userData.physics.positions[i+3];
+                    this.debugMesh.setMatrixAt(i/4, this.tempMatrix.compose(this.tempVec, this.curQuaternion, this.tempVec2.set(scale, scale, scale)));
                 }
+                this.debugMesh.instanceMatrix.needsUpdate = true;
             } else {
                 //console.error("How did this get here?  Create physics objects with PhysicsManager.createPhysicsObject()!", object);
                 // Skip for empty bodies...
@@ -175,19 +185,20 @@ export default class PhysicsManager {
     }
 
     /** Get the centroid of a set of points */
-    getAverage(points) {
+    getAverage(points, collided = []) {
+        let total = 0.0;
         let average = [0, 0, 0];
-        for (let i = 0; i < points.length; i += 3) {
-            average[0] += points[i];
-            average[1] += points[i + 1];
-            average[2] += points[i + 2];
+        for (let i = 0; i < points.length; i += 4) {
+            let weight = 1.0;//(collided.includes(i) ? 10.0 : 1.0);
+            average[0] += points[i    ] * weight;
+            average[1] += points[i + 1] * weight;
+            average[2] += points[i + 2] * weight;
+            total += weight;
         }
-        average[0] /= points.length/3;
-        average[1] /= points.length/3;
-        average[2] /= points.length/3;
+        average[0] /= total;
+        average[1] /= total;
+        average[2] /= total;
         return average;
-
-        //return average.divideScalar(points.length/3);
     }
 
     /** Pack a buffer geometry with quasirandom points
@@ -195,8 +206,10 @@ export default class PhysicsManager {
      * @param {number} numSpheres 
      * @returns {Float32Array} */
     packSpheres(geometry, numSpheres) {
-        let positions = new Float32Array(numSpheres * 3);
+        let positions = new Float32Array(numSpheres * 4);
 
+        /** @type {MeshBVH} */
+        let bvh = geometry.boundsTree;
         /** @type {THREE.Box3} */
         let bounds = geometry.boundingBox;
         let min    = bounds.min;
@@ -216,9 +229,12 @@ export default class PhysicsManager {
             const isInside = hit && hit.face.normal.dot( this.tempRay.direction ) > 0.0;
             if (!isInside) { i--; continue; }
 
-            positions[i * 3    ] = x;
-            positions[i * 3 + 1] = y;
-            positions[i * 3 + 2] = z;
+            let radius = bvh.closestPointToPoint(this.tempVec).distance;//.distanceTo(this.tempVec);
+
+            positions[i * 4    ] = x;
+            positions[i * 4 + 1] = y;
+            positions[i * 4 + 2] = z;
+            positions[i * 4 + 3] = radius;
         }
         return positions;
     }
@@ -256,7 +272,7 @@ export default class PhysicsManager {
         }
     }
 
-    transposeMult(vec1, vec2, average1, average2) {
+    transposeMult(vec1, vec2, average1, average2, collided = []) {
         // Initialize Cross Covariance Matrix
         let covariance = [[0, 0, 0],
                           [0, 0, 0],
@@ -269,9 +285,11 @@ export default class PhysicsManager {
 
         for (let i = 0; i < 3; i++) {                    // i is the row in this matrix
             for (let j = 0; j < 3; j++) {                // j is the column in the other matrix
-                for (let k = 0; k < vec1.length; k+=3) { // k is the column in this matrix
+                for (let k = 0; k < vec1.length; k+=4) { // k is the column in this matrix
+                    let weight = 1.0;//(collided.includes(i) ? 10.0 : 1.0);
+
                     covariance[i][j] += (vec1[k + i] - average1[i]) * 
-                                        (vec2[k + j] - average2[j]);
+                                        (vec2[k + j] - average2[j]) * weight;
                 }
             }
         }
@@ -283,12 +301,12 @@ export default class PhysicsManager {
         return covariance;
     }
 
-    kabschPoints(pointsIn, pointsRef, translation, rotation) {
-        let  inAverage = this.getAverage(pointsIn);
-        let refAverage = this.getAverage(pointsRef);
+    kabschPoints(pointsIn, pointsRef, translation, rotation, collided) {
+        let  inAverage = this.getAverage(pointsIn , collided);
+        let refAverage = this.getAverage(pointsRef, collided);
 
         // Calculate the optimal rotation
-        this.quaternionTorqueDecomposition(this.transposeMult(pointsIn, pointsRef, inAverage, refAverage), rotation, 9);
+        this.quaternionTorqueDecomposition(this.transposeMult(pointsIn, pointsRef, inAverage, refAverage, collided), rotation, 9);
 
         translation.set(-inAverage[0], -inAverage[1], -inAverage[2])
                    .applyQuaternion(rotation)
