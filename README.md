@@ -30,6 +30,5 @@ After building, make sure to edit the index .html to point from `"./src/main.js"
  - [three-mesh-bvh](https://github.com/gkjohnson/three-mesh-bvh) (Bounding Volume Hierarchy)
  - [three.js](https://github.com/mrdoob/three.js/) (3D Rendering Engine)
  - [esbuild](https://github.com/evanw/esbuild/) (Bundler)
-
  - [three-bvh-csg](https://github.com/gkjohnson/three-bvh-csg) (CSG Backend; Unused so far)
  - [physx-js-webidl](https://github.com/fabmax/physx-js-webidl/) (Tetrahedral Meshing Backend; Unused so far)
