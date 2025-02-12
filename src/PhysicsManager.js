@@ -18,15 +18,17 @@ export default class PhysicsManager {
         this.initialized = false;
         /** @type {THREE.Mesh[]} */
         this.physicsObjects = [];
-        this.curOffset = new THREE.Vector3(0, 0, 0);
-        this.curQuaternion = new THREE.Quaternion(0,0,0,1);
-        this.tempVec = new THREE.Vector3(0, 0, 0);
-        this.tempAvg = new THREE.Vector3(0, 0, 0);
+        this.curOffset      = new THREE.Vector3   (0, 0, 0);
+        this.curQuaternion  = new THREE.Quaternion(0, 0, 0, 1);
+        this.tempVec        = new THREE.Vector3   (0, 0, 0);
+        this.forward        = new THREE.Vector3   (0, 0, 1);
+        this.tempAvg        = new THREE.Vector3   (0, 0, 0);
+        this.tempRay        = new THREE.Ray       (new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 0, 1));
 
-        this.debugSpheres = new THREE.InstancedBufferGeometry().copy(new THREE.SphereGeometry(0.02, 8, 8));
-        this.debugMaterial = new THREE.MeshBasicMaterial({ color: 0xaa0000 });
-        this.debugMesh = new THREE.InstancedMesh(this.debugSpheres, this.debugMaterial, 10240);
-        this.debugMesh.visible = false;
+        this.debugSpheres   = new THREE.InstancedBufferGeometry().copy(new THREE.SphereGeometry(0.02, 8, 8));
+        this.debugMaterial  = new THREE.MeshBasicMaterial({ color: 0xaa0000 });
+        this.debugMesh      = new THREE.InstancedMesh(this.debugSpheres, this.debugMaterial, 10240);
+        this.debugMesh.visible = true;
         scene.add(this.debugMesh);
 
         this.setup();
@@ -39,21 +41,27 @@ export default class PhysicsManager {
         mesh.updateMatrixWorld(); // Ensure the world matrix is up to date
 
         // Construct a bounding volume hierarchy for the mesh
-        mesh.geometry.computeBoundsTree();
+        mesh.geometry.computeBoundingBox();
+        if (!mesh.geometry.boundsTree) {
+            mesh.geometry.computeBoundsTree();
+        }
+
+        let physicsReferencePositions = this.packSpheres(mesh.geometry, 100);
 
         // Create a physics object from the mesh
         mesh.userData.isPhysicsObject = true;
         mesh.userData.physics = {
-            needsUpdate      : false,
-            positions        : new Float32Array(mesh.geometry.attributes.position.array),
-            previousPositions: new Float32Array(mesh.geometry.attributes.position.array)
+            needsUpdate       : false,
+            referencePositions: physicsReferencePositions,
+            positions         : new Float32Array(physicsReferencePositions),
+            previousPositions : new Float32Array(physicsReferencePositions)
         };
 
-        console.log("MESH CREATED! Vertices:", mesh.userData.physics.positions.length/3);
+        console.log("MESH CREATED! Vertices:", physicsReferencePositions.length/3);
 
         // Transform the positions to world space
-        for(let i = 0; i < mesh.userData.physics.positions.length; i+=3) {
-            mesh.localToWorld(this.tempVec.fromArray(mesh.userData.physics.positions, i));
+        for(let i = 0; i < physicsReferencePositions.length; i+=3) {
+            mesh.localToWorld(this.tempVec.fromArray(physicsReferencePositions, i));
             mesh.userData.physics.positions        [i]   = this.tempVec.x;
             mesh.userData.physics.positions        [i+1] = this.tempVec.y;
             mesh.userData.physics.positions        [i+2] = this.tempVec.z;
@@ -77,10 +85,14 @@ export default class PhysicsManager {
                     if(!object.geometry){ object.userData.isPhysicsObject = false; continue; }
 
                     // Construct a bounding volume hierarchy for the mesh
-                    object.geometry.computeBoundsTree();
+                    object.geometry.computeBoundingBox();
+                    if (!object.geometry.boundsTree) {
+                        object.geometry.computeBoundsTree();
+                    }
 
-                    object.userData.physics.positions         = new Float32Array(object.geometry.attributes.position.array);
-                    object.userData.physics.previousPositions = new Float32Array(object.geometry.attributes.position.array);
+                    object.userData.physics.referencePositions = this.packSpheres(object.geometry, 100);
+                    object.userData.physics.positions         = new Float32Array(object.userData.physics.referencePositions);
+                    object.userData.physics.previousPositions = new Float32Array(object.userData.physics.referencePositions);
             
                     console.log("MESH UPDATED! Vertices:", object.userData.physics.positions.length/3);
                     this.debugMesh.instanceMatrix.needsUpdate = true;
@@ -89,7 +101,7 @@ export default class PhysicsManager {
                     // TODO: Figure out a way to assign these so that velocities are maintained cheaply!
                     object.updateMatrixWorld(); // Ensure the world matrix is up to date
                     for(let i = 0; i < object.userData.physics.positions.length; i+=3) {
-                        object.localToWorld(this.tempVec.fromArray(object.geometry.attributes.position.array, i));
+                        object.localToWorld(this.tempVec.fromArray(object.userData.physics.referencePositions, i));
                         object.userData.physics.positions        [i]   = this.tempVec.x;
                         object.userData.physics.positions        [i+1] = this.tempVec.y;
                         object.userData.physics.positions        [i+2] = this.tempVec.z;
@@ -131,7 +143,7 @@ export default class PhysicsManager {
 
                 // Kabsch the mesh vertices to the current positions
                 this.kabschPoints(
-                    object.geometry.attributes.position.array, 
+                    object.userData.physics.referencePositions, 
                     object.userData.physics.positions,
                     object.position, object.quaternion);
 
@@ -139,7 +151,7 @@ export default class PhysicsManager {
 
                 // Transform the positions to world space
                 for(let i = 0; i < object.userData.physics.positions.length; i+=3) {
-                    object.localToWorld(this.tempVec.fromArray(object.geometry.attributes.position.array, i));
+                    object.localToWorld(this.tempVec.fromArray(object.userData.physics.referencePositions, i));
                     object.userData.physics.positions[i]   = this.tempVec.x;
                     object.userData.physics.positions[i+1] = this.tempVec.y;
                     object.userData.physics.positions[i+2] = this.tempVec.z;
@@ -176,6 +188,39 @@ export default class PhysicsManager {
         return average;
 
         //return average.divideScalar(points.length/3);
+    }
+
+    /** Pack a buffer geometry with quasirandom points
+     * @param {THREE.BufferGeometry} geometry 
+     * @param {number} numSpheres 
+     * @returns {Float32Array} */
+    packSpheres(geometry, numSpheres) {
+        let positions = new Float32Array(numSpheres * 3);
+
+        /** @type {THREE.Box3} */
+        let bounds = geometry.boundingBox;
+        let min    = bounds.min;
+        let max    = bounds.max;
+
+        for (let i = 0; i < numSpheres; i++) {
+            let rand = Quasirandom.randomValue(3);
+            let x = (rand[0] * (max.x - min.x)) + min.x;
+            let y = (rand[1] * (max.y - min.y)) + min.y;
+            let z = (rand[2] * (max.z - min.z)) + min.z;
+
+            //console.log("Checking point", rand, x, y, z);
+
+            // Check if the point is inside the mesh
+            this.tempRay.set(this.tempVec.set(x, y, z), this.forward);
+            const hit = geometry.boundsTree.raycastFirst( this.tempRay, THREE.DoubleSide );
+            const isInside = hit && hit.face.normal.dot( this.tempRay.direction ) > 0.0;
+            if (!isInside) { i--; continue; }
+
+            positions[i * 3    ] = x;
+            positions[i * 3 + 1] = y;
+            positions[i * 3 + 2] = z;
+        }
+        return positions;
     }
 
     /** Iteratively apply torque to the basis using Cross products (in place of SVD) 
@@ -251,4 +296,49 @@ export default class PhysicsManager {
 
     }
 
+}
+
+//Generic Quasirandom Number Generating Class
+//http://extremelearning.com.au/unreasonable-effectiveness-of-quasirandom-sequences/
+class Quasirandom {
+    static currentSeed = 0;
+    static alphas = {};//new Dictionary<int, float[]>();
+  
+    static phi(dimension) {
+      let x = 1.0;
+      for (let i = 0; i < 20; i++){
+        x = x - (Math.pow(x, dimension + 1) - x - 1) / ((dimension + 1) * Math.pow(x, dimension) - 1);
+      }
+      console.log("Phi:", x);
+      return x;
+    }
+  
+    static bakeAlphas(dimensions) {
+      let gamma = Quasirandom.phi(dimensions);
+      let newAlphas = new Float32Array(dimensions);
+      for (let i = 0; i < dimensions; i++) { newAlphas[i] = Math.pow(1.0 / gamma, i + 1) % 1.0; }
+      Quasirandom.alphas[dimensions] = newAlphas;
+      console.log(Quasirandom.alphas);
+      return newAlphas;
+    }
+  
+    static randomValue(dimensions = 3, seed = 0) {
+      let currentAlphas;
+      //if (!alphas.TryGetValue(dimensions, out currentAlphas)) { currentAlphas = bakeAlphas(dimensions); }
+      if (dimensions in Quasirandom.alphas) {
+        currentAlphas = Quasirandom.alphas[dimensions];
+      } else { 
+        currentAlphas = Quasirandom.bakeAlphas(dimensions);
+      }
+      if (seed != 0) { Quasirandom.currentSeed = seed; }
+      console.log(Quasirandom.currentSeed);
+      return Quasirandom.value(currentAlphas, dimensions);
+    }
+  
+    static value(currentAlphas, dimensions = 3) {
+      let value = new Float32Array(dimensions);
+      for (let i = 0; i < dimensions; i++) { value[i] = (Quasirandom.currentSeed * currentAlphas[i]) % 1.0; }
+      Quasirandom.currentSeed += 1;
+      return value;
+    }
 }
