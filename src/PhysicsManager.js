@@ -23,13 +23,18 @@ export default class PhysicsManager {
         this.tempVec        = new THREE.Vector3   (0, 0, 0);
         this.tempVec2       = new THREE.Vector3   (0, 0, 0);
         this.forward        = new THREE.Vector3   (0, 0, 1);
+        this.tempNormal     = new THREE.Vector3   (0, 0, 0);
         this.tempAvg        = new THREE.Vector3   (0, 0, 0);
         this.tempRay        = new THREE.Ray       (new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 0, 1));
         this.tempMatrix     = new THREE.Matrix4  ();
 
+        this.raycaster = new THREE.Raycaster();
+        this.raycaster.firstHitOnly = true;
+        //this.raycaster.intersectObjects( [  ] );
+
         this.debugSpheres   = new THREE.InstancedBufferGeometry().copy(new THREE.SphereGeometry(1.0, 8, 8));
         this.debugMaterial  = new THREE.MeshBasicMaterial({ color: 0xaa0000 });
-        this.debugMesh      = new THREE.InstancedMesh(this.debugSpheres, this.debugMaterial, 100);
+        this.debugMesh      = new THREE.InstancedMesh(this.debugSpheres, this.debugMaterial, 10240);
         this.debugMesh.visible = true;
         scene.add(this.debugMesh);
 
@@ -43,12 +48,24 @@ export default class PhysicsManager {
         mesh.updateMatrixWorld(); // Ensure the world matrix is up to date
 
         // Construct a bounding volume hierarchy for the mesh
-        mesh.geometry.computeBoundingBox();
+        /** @type {THREE.Box3} */
+        mesh.userData.boundingBox = new THREE.Box3().setFromObject(mesh);
         if (!mesh.geometry.boundsTree) {
             mesh.geometry.computeBoundsTree();
         }
 
+        let boxHelper = new THREE.Box3Helper(mesh.userData.boundingBox, 0xffffff);
+        mesh.parent.parent.add(boxHelper);
+        boxHelper.material.depthTest = false;
+        boxHelper.material.transparent = true;
+        mesh.userData.boxHelper = boxHelper;
+        mesh.userData.boxHelper.updateMatrixWorld();
+        console.log(mesh.parent, mesh.userData.boxHelper);
+
         let physicsReferencePositions = this.packSpheres(mesh.geometry, 100);
+        let numCollisionProxyPoints = Math.max(Math.floor(mesh.geometry.userData.surfaceArea * 200), 30);
+        console.log("Volume:", mesh.geometry.userData.surfaceArea, "Num Points:", numCollisionProxyPoints);
+        physicsReferencePositions = this.packSpheres(mesh.geometry, numCollisionProxyPoints);
 
         // Create a physics object from the mesh
         mesh.userData.isPhysicsObject = true;
@@ -75,11 +92,14 @@ export default class PhysicsManager {
             this.debugMesh.setMatrixAt(i/4, this.tempMatrix.compose(this.tempVec, this.curQuaternion, this.tempVec2.set(scale, scale, scale)));
         }
 
+        mesh.userData.physics.needsUpdate = true;
+
         this.physicsObjects.push(mesh);
     }
 
     /** Update all the physics objects by integrating the positions and updating the meshes  */
     update() {
+        let debugSpheres = 0;
         for (let object of this.physicsObjects) {
             if (object.userData.isPhysicsObject) {
                 if(object.userData.physics.needsUpdate) {
@@ -88,17 +108,19 @@ export default class PhysicsManager {
                     if(!object.geometry){ object.userData.isPhysicsObject = false; continue; }
 
                     // Construct a bounding volume hierarchy for the mesh
-                    object.geometry.computeBoundingBox();
+                    //object.geometry.computeBoundingBox();
+                    /** @type {THREE.Box3} */
+                    object.userData.boundingBox.setFromObject(object);
+                    object.userData.boxHelper.updateMatrixWorld();
                     if (!object.geometry.boundsTree) {
                         object.geometry.computeBoundsTree();
                     }
 
-                    object.userData.physics.referencePositions = this.packSpheres(object.geometry, 100);
+                    let numCollisionProxyPoints = Math.max(Math.floor(object.geometry.userData.surfaceArea * 200), 30);
+                    console.log("Volume:", object.geometry.userData.surfaceArea, "Num Points:", numCollisionProxyPoints);
+                    object.userData.physics.referencePositions = this.packSpheres(object.geometry, numCollisionProxyPoints);
                     object.userData.physics.positions         = new Float32Array(object.userData.physics.referencePositions);
                     object.userData.physics.previousPositions = new Float32Array(object.userData.physics.referencePositions);
-            
-                    console.log("MESH UPDATED! Vertices:", object.userData.physics.positions.length/4);
-                    this.debugMesh.instanceMatrix.needsUpdate = true;
 
                     // Transform the positions to world space
                     // TODO: Figure out a way to assign these so that velocities are maintained cheaply!
@@ -113,7 +135,8 @@ export default class PhysicsManager {
                         object.userData.physics.previousPositions[i+2] = this.tempVec.z;
             
                         let scale = object.userData.physics.positions[i+3];
-                        this.debugMesh.setMatrixAt(i/4, this.tempMatrix.compose(this.tempVec, this.curQuaternion, this.tempVec2.set(scale, scale, scale)));
+                        this.debugMesh.setMatrixAt(debugSpheres, this.tempMatrix.compose(this.tempVec, this.curQuaternion, this.tempVec2.set(scale, scale, scale)));
+                        debugSpheres = debugSpheres + 1;
                     }
                 }
 
@@ -123,27 +146,87 @@ export default class PhysicsManager {
                 // Add Gravity and Collide the positions against the ground
                 let collided = [];
                 for (let i = 0; i < object.userData.physics.positions.length; i+=4) {
+                    // Gravity
+                    object.userData.physics.positions[i+1] -= 0.001;
 
-                    //// Clamp distance from the origin
-                    //let distance = Math.sqrt(object.userData.physics.positions[i  ] * object.userData.physics.positions[i  ] +
-                    //                         object.userData.physics.positions[i+1] * object.userData.physics.positions[i+1] +
-                    //                         object.userData.physics.positions[i+2] * object.userData.physics.positions[i+2]);
-                    //if (distance > 3) {
-                    //    object.userData.physics.positions[i  ] *= 3 / distance;
-                    //    object.userData.physics.positions[i+1] *= 3 / distance;
-                    //    object.userData.physics.positions[i+2] *= 3 / distance;
-                    //}
-
-
-                    object.userData.physics.positions[i+1] -= 0.001; // Gravity
-                    if (object.userData.physics.positions[i+1] < object.userData.physics.positions[i+3]) {
+                    // Collide with the ground
+                    if (object.userData.physics.positions[i+1] < 0.01){//object.userData.physics.positions[i+3]) {
                         collided.push(i);
-                        object.userData.physics.positions[i+1] = object.userData.physics.positions[i+3];
+                        object.userData.physics.positions[i+1] = 0.01;//object.userData.physics.positions[i+3];
                         // Friction - Mostly just horizontal damping while on the ground
                         let perpendicularVelocityX = object.userData.physics.positions[i]   - object.userData.physics.previousPositions[i];
                         let perpendicularVelocityZ = object.userData.physics.positions[i+2] - object.userData.physics.previousPositions[i+2];
                         object.userData.physics.positions[i]   -= perpendicularVelocityX * 0.25;
                         object.userData.physics.positions[i+2] -= perpendicularVelocityZ * 0.25;
+                    }
+
+                }
+
+                // Collide with each other
+                object.userData.boxHelper.material.color.setHex(0x00ff00);
+                /** @type {THREE.Box3} */
+                let ourBounds = object.userData.boundingBox;
+                for (let other of this.physicsObjects) {
+                    if (other.geometry && other.userData.isPhysicsObject && object !== other) {
+                        // Do "broadphase" box-box check
+                        /** @type {THREE.Box3} */
+                        let bounds = other.userData.boundingBox;
+                        if(!bounds) { continue; }//other.userData.boundingBox = new THREE.Box3().setFromObject(other); bounds = other.userData.boundingBox; }
+
+                        if(ourBounds.intersectsBox(bounds)){
+                            /** @type {MeshBVH} */
+                            let otherBVH = other.geometry.boundsTree;
+                            if(!otherBVH) { other.geometry.computeBoundsTree(); otherBVH = other.geometry.boundsTree; }
+
+                            object.userData.boxHelper.material.color.setHex(0xffff00);
+
+                            for (let i = 0; i < object.userData.physics.positions.length; i+=4) {
+                                this.tempVec2.set(object.userData.physics.previousPositions[i  ],
+                                                  object.userData.physics.previousPositions[i+1],
+                                                  object.userData.physics.previousPositions[i+2]);
+                                this.tempVec.set(object.userData.physics.positions[i  ],
+                                                 object.userData.physics.positions[i+1],
+                                                 object.userData.physics.positions[i+2]);
+
+                                // Step 1: Check if the particle is inside another body's bounding box
+                                if (bounds.containsPoint(this.tempVec)) {
+                                    object.userData.physics.positions[i+3] = 0.02;
+
+                                    // Step 2: Check if the particle is inside the mesh
+                                    other.worldToLocal(this.tempVec2.fromArray(object.userData.physics.positions, i));
+
+                                    let hit = otherBVH.raycastFirst( this.tempRay.set(this.tempVec2, this.forward), THREE.DoubleSide );
+                                    let isInside = hit && hit.face.normal.dot( this.tempRay.direction ) > 0.0;
+                                    if(isInside){
+                                        let closestPt = other.localToWorld(otherBVH.closestPointToPoint(this.tempVec2).point);
+                                        object.userData.physics.positions[i  ] = closestPt.x;
+                                        object.userData.physics.positions[i+1] = closestPt.y;
+                                        object.userData.physics.positions[i+2] = closestPt.z;
+                                        object.userData.physics.positions[i+3] = 0.1;
+                                    }
+
+                                    //// Step 2: Check if the particle has entered the mesh via raycast
+                                    //other.worldToLocal(this.tempVec .fromArray(object.userData.physics.positions, i));
+                                    //other.worldToLocal(this.tempVec2.fromArray(object.userData.physics.previousPositions, i));
+
+                                    //let dir = this.tempVec.sub(this.tempVec2);
+                                    //let distance = dir.length();
+
+                                    //let hit = otherBVH.raycastFirst( this.tempRay.set(this.tempVec2, dir.normalize()), THREE.FrontSide, 0.0, distance );
+
+                                    //if(hit){
+                                    //    collided.push(i);
+                                    //    let closestPt = other.localToWorld(hit.point);
+                                    //    object.userData.physics.positions[i  ] = (closestPt.x*0.9) + (object.userData.physics.previousPositions[i  ]*0.1);
+                                    //    object.userData.physics.positions[i+1] = (closestPt.y*0.9) + (object.userData.physics.previousPositions[i+1]*0.1);
+                                    //    object.userData.physics.positions[i+2] = (closestPt.z*0.9) + (object.userData.physics.previousPositions[i+2]*0.1);
+                                    //    object.userData.physics.positions[i+3] = 0.1;
+                                    //}
+                                }else{
+                                    object.userData.physics.positions[i+3] = 0.01;
+                                }
+                            }
+                        }
                     }
                 }
 
@@ -155,15 +238,20 @@ export default class PhysicsManager {
 
                 object.updateMatrixWorld(); // Ensure the world matrix is up to date
 
+                /** @type {THREE.Box3} */
+                object.userData.boundingBox.setFromObject(object);
+
                 // Transform the positions to world space
                 for(let i = 0; i < object.userData.physics.positions.length; i+=4) {
+                    //if(collided.includes(i)){ continue; }
                     object.localToWorld(this.tempVec.fromArray(object.userData.physics.referencePositions, i));
                     object.userData.physics.positions[i]   = this.tempVec.x;
                     object.userData.physics.positions[i+1] = this.tempVec.y;
                     object.userData.physics.positions[i+2] = this.tempVec.z;
 
                     let scale = object.userData.physics.positions[i+3];
-                    this.debugMesh.setMatrixAt(i/4, this.tempMatrix.compose(this.tempVec, this.curQuaternion, this.tempVec2.set(scale, scale, scale)));
+                    this.debugMesh.setMatrixAt(debugSpheres, this.tempMatrix.compose(this.tempVec, this.curQuaternion, this.tempVec2.set(scale, scale, scale)));
+                    debugSpheres = debugSpheres + 1;
                 }
                 this.debugMesh.instanceMatrix.needsUpdate = true;
             } else {
@@ -171,6 +259,8 @@ export default class PhysicsManager {
                 // Skip for empty bodies...
             }
         }
+        this.debugMesh.count = debugSpheres;
+        this.debugMesh.instanceMatrix.needsUpdate = true;
     }
 
 
@@ -178,6 +268,7 @@ export default class PhysicsManager {
      * XPBD is a more advanced version that handles elasticity in a more principles fashion */
     verletIntegrate(curPoints, pastPoints) {
         for (let i = 0; i < curPoints.length; i++) {
+            if(i % 4 === 3) { continue; } // Skip the radius
             let temp       = curPoints[i];
             curPoints [i] += curPoints[i] - pastPoints[i];
             pastPoints[i]  = temp;
@@ -206,36 +297,98 @@ export default class PhysicsManager {
      * @param {number} numSpheres 
      * @returns {Float32Array} */
     packSpheres(geometry, numSpheres) {
+        let startTime = performance.now();
         let positions = new Float32Array(numSpheres * 4);
 
         /** @type {MeshBVH} */
         let bvh = geometry.boundsTree;
         /** @type {THREE.Box3} */
         let bounds = geometry.boundingBox;
-        let min    = bounds.min;
-        let max    = bounds.max;
+        let min    = bounds.min.clone();
+        let max    = bounds.max.clone();
+
+        // Expand the bounds slightly
+        min.set(min.x-0.2, min.y-0.2, min.z-0.2);
+        max.set(max.x+0.2, max.y+0.2, max.z+0.2);
 
         for (let i = 0; i < numSpheres; i++) {
-            let rand = Quasirandom.randomValue(3);
+            let rand = null;
+            if(i < 27){
+                rand = [(           i      % 3) * 0.5,
+                        (Math.floor(i / 3) % 3) * 0.5,
+                        (Math.floor(i / 9) % 3) * 0.5];
+                //console.log("Using Grid", rand);
+            } else {
+                rand = Quasirandom.randomValue(3);
+            }
             let x = (rand[0] * (max.x - min.x)) + min.x;
             let y = (rand[1] * (max.y - min.y)) + min.y;
             let z = (rand[2] * (max.z - min.z)) + min.z;
 
             //console.log("Checking point", rand, x, y, z);
 
-            // Check if the point is inside the mesh
-            this.tempRay.set(this.tempVec.set(x, y, z), this.forward);
-            const hit = geometry.boundsTree.raycastFirst( this.tempRay, THREE.DoubleSide );
-            const isInside = hit && hit.face.normal.dot( this.tempRay.direction ) > 0.0;
-            if (!isInside) { i--; continue; }
+            let hitPointInfo = bvh.closestPointToPoint(this.tempVec.set(x, y, z));//.distanceTo(this.tempVec);
 
-            let radius = bvh.closestPointToPoint(this.tempVec).distance;//.distanceTo(this.tempVec);
+            //// get the face normal to determine if the distance should be positive or negative
+            //let tri = new THREE.Triangle();
+            //let faceIndex = hitPointInfo.faceIndex;
+            //let i0 = geometry.index.getX( faceIndex * 3 + 0 );
+            //let i1 = geometry.index.getX( faceIndex * 3 + 1 );
+            //let i2 = geometry.index.getX( faceIndex * 3 + 2 );
+            //tri.setFromAttributeAndIndices( geometry.attributes.position, i0, i1, i2 );
+            //tri.getNormal( this.tempNormal );
+            ////delta.subVectors( target.point, point );
+            ////sdfTex.image.data[ index ] = this.tempNormal.dot( delta ) > 0.0 ? - dist : dist;
 
-            positions[i * 4    ] = x;
-            positions[i * 4 + 1] = y;
-            positions[i * 4 + 2] = z;
+            ////// Check if the point is inside the mesh
+            ////this.tempRay.set(this.tempVec.set(x, y, z), this.forward);
+            ////const hit = bvh.raycastFirst( this.tempRay, THREE.DoubleSide );
+            ////const isInside = hit && hit.face.normal.dot( this.tempRay.direction ) > 0.0;
+            ////if (!isInside) { i--; continue; }
+
+            ////let radius = bvh.closestPointToPoint(this.tempVec).distance;//.distanceTo(this.tempVec);
+
+            ////bvh.closestPointToPoint(this.tempVec.set(hitPointInfo.point.x - (this.tempNormal.x * 0.05),
+            ////                                         hitPointInfo.point.y - (this.tempNormal.y * 0.05),
+            ////                                         hitPointInfo.point.z - (this.tempNormal.z * 0.05)), hitPointInfo);
+
+            //// Check if the point is inside the mesh
+            //let radius = 0.2;
+            //this.tempRay.set(this.tempVec.set(hitPointInfo.point.x, hitPointInfo.point.y, hitPointInfo.point.z), this.tempNormal.negate());
+            //const hit = bvh.raycastFirst( this.tempRay, THREE.DoubleSide, 0.0001, radius );
+            ////console.log(hit);
+            ////const isInside = hit && hit.face.normal.dot( this.tempRay.direction ) > 0.0;
+            ////if (!isInside) { i--; continue; }
+
+            //if (hit){
+            //    this.tempVec.set((hitPointInfo.point.x + hit.point.x) * 0.5,
+            //                     (hitPointInfo.point.y + hit.point.y) * 0.5,
+            //                     (hitPointInfo.point.z + hit.point.z) * 0.5);
+            //}else{
+            //    this.tempVec.set(hitPointInfo.point.x + (this.tempNormal.x * radius),
+            //                     hitPointInfo.point.y + (this.tempNormal.y * radius),
+            //                     hitPointInfo.point.z + (this.tempNormal.z * radius));
+            //}
+
+            //bvh.closestPointToPoint(this.tempVec, hitPointInfo);
+            //radius = hitPointInfo.distance;//Math.max(hitPointInfo.distance, 0.05);
+
+            //this.tempRay.set(this.tempVec, this.forward);
+            //const hit2 = bvh.raycastFirst( this.tempRay, THREE.DoubleSide );
+            //const isInside = hit2 && hit2.face.normal.dot( this.tempRay.direction ) > 0.0;
+            //if(!isInside){
+                this.tempVec.set(hitPointInfo.point.x, hitPointInfo.point.y, hitPointInfo.point.z);
+                let radius = 0.01;
+            //}
+
+            radius = Math.max(radius, 0.01);
+
+            positions[i * 4    ] = this.tempVec.x;
+            positions[i * 4 + 1] = this.tempVec.y;
+            positions[i * 4 + 2] = this.tempVec.z;
             positions[i * 4 + 3] = radius;
         }
+        console.log("Pack Spheres took", performance.now() - startTime, "ms");
         return positions;
     }
 
@@ -349,7 +502,7 @@ class Quasirandom {
         currentAlphas = Quasirandom.bakeAlphas(dimensions);
       }
       if (seed != 0) { Quasirandom.currentSeed = seed; }
-      console.log(Quasirandom.currentSeed);
+      //console.log(Quasirandom.currentSeed);
       return Quasirandom.value(currentAlphas, dimensions);
     }
   

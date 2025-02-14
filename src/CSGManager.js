@@ -76,6 +76,7 @@ class CSGManager {
         for(let m = 0; m < islands.length; m++){
             //let dummy = new manifold.Manifold();
             let volume   = islands[m].volume();
+            let surfaceArea = islands[m].surfaceArea();
             let mesh     = islands[m].getMesh();
             let geometry = new THREE.BufferGeometry();
             let position = new Float32Array(mesh.vertProperties.length);// / 2);
@@ -106,6 +107,7 @@ class CSGManager {
                 creasedGeometry.manifoldGeometry = geometry;
                 if(creasedGeometry.userData == undefined){ creasedGeometry.userData = {}; }
                 creasedGeometry.userData.volume = volume;
+                creasedGeometry.userData.surfaceArea = surfaceArea;
                 geometries.push(creasedGeometry);
             }
         }
@@ -115,7 +117,7 @@ class CSGManager {
 
         let meshes = [];
         if (threeMesh === null) {
-            let resultMesh = new THREE.Mesh(geometries[0], threeMesh != null ? threeMesh.material : new THREE.MeshPhysicalMaterial({ color: 0x00ff00, transparent: true, opacity: 0.5 }));
+            let resultMesh = new THREE.Mesh(geometries[0], threeMesh != null ? threeMesh.material : new THREE.MeshPhysicalMaterial({ color: 0x00ff00, transparent: false, opacity: 0.5 }));
             meshes.push(resultMesh);
         } else {
             threeMesh.geometry = geometries[0];
@@ -125,6 +127,7 @@ class CSGManager {
                 if(geometries[i] && geometries[i].attributes.position.array.length > 0){
                     let resultMesh = threeMesh.clone();
                     resultMesh.geometry = geometries[i];
+                    resultMesh.material = threeMesh.material.clone();
                     meshes.push(resultMesh);
                 }
             }
@@ -171,6 +174,8 @@ class CSGManager {
      */
     static subtract(meshA, meshB) {
         let startTime = performance.now();
+
+        if(!meshA || !meshA.geometry || !meshA.geometry.manifoldGeometry){ return meshA; }
 
         let manifoldA = CSGManager.threeToManifold(meshA);
         let manifoldB = CSGManager.threeToManifold(meshB);
