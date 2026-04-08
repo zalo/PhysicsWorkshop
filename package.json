@@ -5,7 +5,9 @@
 	"dependencies": {
 		"esbuild": "^0.24.2",
 		"manifold-3d": "^3.0.1",
-		"three": "^0.173.0",
-		"three-bvh-csg": "^0.0.16"
+		"three": "^0.182.0",
+		"three-bvh-csg": "^0.0.16",
+		"three-mesh-bvh": ">=0.7.0",
+		"tetrament": "file:../Tetrament"
 	}
 }

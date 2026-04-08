@@ -1,4 +1,4 @@
-import * as THREE from '../node_modules/three/build/three.module.js';
+import * as THREE from 'three/webgpu';
 import Stats from '../node_modules/three/examples/jsm/libs/stats.module.js';
 import { OrbitControls } from '../node_modules/three/examples/jsm/controls/OrbitControls.js';
 
@@ -8,11 +8,11 @@ export default class World {
     constructor(mainObject) { this._setupWorld(mainObject); }
 
     /** **INTERNAL**: Set up a basic world */
-    _setupWorld(mainObject) {
+    async _setupWorld(mainObject) {
         // app container div
         this.container = document.getElementById('appbody');
         document.body.appendChild(this.container);
-        
+
         // camera and world
         this.scene = new THREE.Scene();
         this.scene.background = new THREE.Color( 0x000000 );
@@ -47,34 +47,38 @@ export default class World {
         this.dirLight.shadow.mapSize.width = 1024;
         this.dirLight.shadow.mapSize.height = 1024;
         this.scene.add( this.dirLight );
-        
+
         // Geometry
 
         this.ground = new THREE.Mesh(
             new THREE.PlaneGeometry( 20, 20, 1, 1 ),
             new THREE.MeshPhongMaterial( { color: 0xa0adaf, shininess: 150 } )
-        );				
+        );
 
         this.ground.rotation.x = - Math.PI / 2; // rotates X/Y to X/Z
         this.ground.receiveShadow = true;
         this.scene.add( this.ground );
-        
+
         this.helper = new THREE.GridHelper( 20, 20 );
         this.helper.material.opacity = 1.0;
         this.helper.material.transparent = true;
         this.helper.position.set(0, 0.002, 0);
         this.scene.add( this.helper );
 
-        // renderer
-        this.renderer = new THREE.WebGLRenderer( { antialias: true } ); //, alpha: true
+        // renderer - WebGPU
+        this.renderer = new THREE.WebGPURenderer( { antialias: true } );
         this.renderer.setPixelRatio( window.devicePixelRatio );
         this.renderer.shadowMap.enabled = true;
         this.container.appendChild(this.renderer.domElement);
-        this.renderer.setAnimationLoop(mainObject.update.bind(mainObject));
-        this.renderer.setClearColor( 0x35363e, 0 ); // the default
         window.addEventListener('resize', this._onWindowResize.bind(this), false);
         window.addEventListener('orientationchange', this._onWindowResize.bind(this), false);
         this._onWindowResize();
+
+        // Wait for WebGPU to initialize
+        await this.renderer.init();
+
+        this.renderer.setAnimationLoop(mainObject.update.bind(mainObject));
+        this.renderer.setClearColor( 0x35363e, 0 ); // the default
 
         this.draggableObjects = [];
         this.controls = new OrbitControls(this.camera, this.renderer.domElement);
@@ -103,6 +107,9 @@ export default class World {
         this.quat = new THREE.Quaternion().identity();
         this.color = new THREE.Color();
 
+        // Signal that the world is ready
+        this.initialized = true;
+        if (mainObject.onWorldReady) mainObject.onWorldReady();
     }
 
     /** **INTERNAL**: This function recalculates the viewport based on the new window size. */

@@ -33,14 +33,25 @@
 
         <!-- Allows three.js Examples to work without building -->
         <script type="importmap">
-            { "imports": { "three": "../node_modules/three/build/three.module.js",
-                            "three-bvh-csg" : "../node_modules/three-bvh-csg/build/index.module.js",
-                            "three-mesh-bvh" : "../node_modules/three-mesh-bvh/build/index.module.js"  } }
+            { "imports": {
+                "three":            "../node_modules/three/build/three.module.js",
+                "three/webgpu":     "../node_modules/three/build/three.webgpu.js",
+                "three/tsl":        "../node_modules/three/build/three.tsl.js",
+                "three/addons/":    "../node_modules/three/examples/jsm/",
+                "three-bvh-csg":    "../node_modules/three-bvh-csg/build/index.module.js",
+                "three-mesh-bvh":   "../node_modules/three-mesh-bvh/build/index.module.js",
+                "tetrament":        "../node_modules/tetrament/dist/tetrament.js"
+            } }
         </script>
 
-        <!-- <script src="./assets/physx-js-webidl/dist/physx-js-webidl.js"></script> -->
-
         <div id="appbody" style="position: absolute;z-index: -100;">
+            <script>
+                if (!navigator.gpu) {
+                    document.getElementById('info').innerHTML =
+                        '<b style="color:red">WebGPU is not available on this browser/device.</b><br>' +
+                        'Requires iOS 18+ Safari, Chrome 113+, or Edge 113+.';
+                }
+            </script>
             <script type="module" src="./src/main.js"></script>
         </div>
         <div id="info">

@@ -1,8 +1,7 @@
-import * as THREE from '../node_modules/three/build/three.module.js';
+import * as THREE from 'three';
 import Module /*, {Manifold}*/ from '../node_modules/manifold-3d/manifold.js';
 import { mergeVertices, toCreasedNormals } from '../node_modules/three/examples/jsm/utils/BufferGeometryUtils.js';
-import { SUBTRACTION, Brush, Evaluator, GridMaterial, HalfEdgeMap } from '../node_modules/three-bvh-csg/build/index.module.js';
-//import { Dcel } from './Dcel.js';
+import { SUBTRACTION, Brush, Evaluator, GridMaterial, HalfEdgeMap } from 'three-bvh-csg';
 
 // Initialize manifold outside of the class, which is otherwise just a collection of static functions.
 const manifold = await Module();
