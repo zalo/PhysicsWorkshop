@@ -12,7 +12,9 @@ export default class PhysXManager {
 
     async setup(scene) {
         this.scene = scene;
-        this.px = await PhysXInit();
+        this.px = await PhysXInit({
+            locateFile: (name) => `./assets/physx-js-webidl/dist/${name}`
+        });
 
         let version = this.px.PHYSICS_VERSION;
         this.allocator = new this.px.PxDefaultAllocator();
