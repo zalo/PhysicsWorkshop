@@ -1,5 +1,5 @@
 import * as THREE from '../node_modules/three/build/three.module.js';
-import PhysXInit from '../assets/physx-js-webidl/dist/physx-js-webidl.mjs';
+import PhysX from '../assets/physx-js-webidl/dist/physx-js-webidl.mjs';
 
 /** PhysX rigid body physics manager for Three.js meshes */
 export default class PhysXManager {
@@ -12,7 +12,7 @@ export default class PhysXManager {
 
     async setup(scene) {
         this.scene = scene;
-        this.px = await PhysXInit({
+        this.px = await PhysX({
             locateFile: (name) => `./assets/physx-js-webidl/dist/${name}`
         });
 

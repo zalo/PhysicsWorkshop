@@ -172,15 +172,21 @@ class CSGManager {
     static subtract(meshA, meshB) {
         let startTime = performance.now();
 
-        let manifoldA = CSGManager.threeToManifold(meshA);
-        let manifoldB = CSGManager.threeToManifold(meshB);
+        let manifoldA, manifoldB;
+        try {
+            manifoldA = CSGManager.threeToManifold(meshA);
+            manifoldB = CSGManager.threeToManifold(meshB);
+        } catch (e) {
+            console.warn('Subtract: failed to create manifold', e.message);
+            if (manifoldA) manifoldA.delete();
+            return [meshA];
+        }
+
         let resultManifold = manifoldA.subtract(manifoldB);
         manifoldA.delete();
         manifoldB.delete();
         let result = CSGManager.manifoldToThree(resultManifold, meshA);
         resultManifold.delete();
-
-        if (result[0].userData.isPhysicsObject) { result[0].userData.physics.needsUpdate = true; }
 
         console.log("Subtract took", performance.now() - startTime, "ms");
         return result;
