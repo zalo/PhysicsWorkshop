@@ -75,8 +75,13 @@ export default class PhysXManager {
             minX = Math.min(minX, x); minY = Math.min(minY, y); minZ = Math.min(minZ, z);
             maxX = Math.max(maxX, x); maxY = Math.max(maxY, y); maxZ = Math.max(maxZ, z);
         }
+        // Sparse SDF: grid dims must be divisible by subgridSize (6)
+        // Target ~24 voxels along the longest axis, rounded up to multiple of 6
         let longestAxis = Math.max(maxX - minX, maxY - minY, maxZ - minZ);
-        let spacing = longestAxis / 16;
+        let targetRes = 24;
+        let subgridSize = 6;
+        targetRes = Math.ceil(targetRes / subgridSize) * subgridSize; // ensure divisible
+        let spacing = longestAxis / targetRes;
 
         let inputVerts = new this.px.PxArray_PxVec3(numVerts);
         for (let i = 0; i < numVerts; i++) {
@@ -103,9 +108,10 @@ export default class PhysXManager {
 
         let sdfDesc = new this.px.PxSDFDesc();
         sdfDesc.set_spacing(spacing);
-        sdfDesc.set_subgridSize(0);
-        sdfDesc.set_bitsPerSubgridPixel(this.px.e32_BIT_PER_PIXEL);
+        sdfDesc.set_subgridSize(6);
+        sdfDesc.set_bitsPerSubgridPixel(this.px.e16_BIT_PER_PIXEL);
         sdfDesc.set_numThreadsForSdfConstruction(1);
+        sdfDesc.set_narrowBandThicknessRelativeToSdfBoundsDiagonal(0.01);
         desc.set_sdfDesc(sdfDesc);
 
         let gridX = Math.ceil((maxX-minX)/spacing)+1, gridY = Math.ceil((maxY-minY)/spacing)+1, gridZ = Math.ceil((maxZ-minZ)/spacing)+1;
