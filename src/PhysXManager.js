@@ -75,12 +75,10 @@ export default class PhysXManager {
             minX = Math.min(minX, x); minY = Math.min(minY, y); minZ = Math.min(minZ, z);
             maxX = Math.max(maxX, x); maxY = Math.max(maxY, y); maxZ = Math.max(maxZ, z);
         }
-        // Sparse SDF: grid dims must be divisible by subgridSize (6)
-        // Target ~24 voxels along the longest axis, rounded up to multiple of 6
+        // Lazy SDF: dense grid with on-demand voxel computation (no upfront baking)
+        // Target ~24 voxels along the longest axis
         let longestAxis = Math.max(maxX - minX, maxY - minY, maxZ - minZ);
         let targetRes = 24;
-        let subgridSize = 6;
-        targetRes = Math.ceil(targetRes / subgridSize) * subgridSize; // ensure divisible
         let spacing = longestAxis / targetRes;
 
         let inputVerts = new this.px.PxArray_PxVec3(numVerts);
@@ -108,16 +106,15 @@ export default class PhysXManager {
 
         let sdfDesc = new this.px.PxSDFDesc();
         sdfDesc.set_spacing(spacing);
-        sdfDesc.set_subgridSize(6);
-        sdfDesc.set_bitsPerSubgridPixel(this.px.e16_BIT_PER_PIXEL);
+        sdfDesc.set_subgridSize(0);            // dense SDF (required for lazy mode)
+        sdfDesc.set_lazyEvaluation(true);       // skip baking, compute on demand
         sdfDesc.set_numThreadsForSdfConstruction(1);
-        sdfDesc.set_narrowBandThicknessRelativeToSdfBoundsDiagonal(0.01);
         desc.set_sdfDesc(sdfDesc);
 
         let gridX = Math.ceil((maxX-minX)/spacing)+1, gridY = Math.ceil((maxY-minY)/spacing)+1, gridZ = Math.ceil((maxZ-minZ)/spacing)+1;
         let t0 = performance.now();
         let triMesh = this.px.CreateTriangleMesh(this.cookingParams, desc);
-        console.log(`SDF bake: ${numTris} tris, ${gridX}x${gridY}x${gridZ}, ${(performance.now()-t0).toFixed(1)}ms`);
+        console.log(`SDF lazy init: ${numTris} tris, ${gridX}x${gridY}x${gridZ} grid, ${(performance.now()-t0).toFixed(1)}ms (values computed on demand)`);
 
         inputVerts.__destroy__();
         inputTris.__destroy__();
